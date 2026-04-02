@@ -19,9 +19,9 @@
       --surface2:   #202227;
       --border:     #2e3038;
       --border-hi:  #42454f;
-      --text:       #dde1e8;
-      --text-dim:   #6e7380;
-      --text-muted: #42454f;
+      --text:       #eef2f7;
+      --text-dim:   #c8d0db;
+      --text-muted: #8b93a3;
       --accent:     #c8a84b;   /* amber / terminal gold */
       --accent-dim: #8a7030;
       --danger:     #c0392b;
@@ -397,6 +397,37 @@
       padding: 24px;
       animation: slideUp .15s ease;
     }
+    .panel-window {
+      background: var(--surface);
+      border: 1px solid var(--border-hi);
+      border-radius: var(--radius);
+      width: min(420px, calc(100vw - 24px));
+      max-height: min(78vh, 760px);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      animation: slideUp .15s ease;
+    }
+    .panel-window .section-header {
+      cursor: default;
+    }
+    .panel-window-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 140px;
+    }
+    .panel-window-footer {
+      border-top: 1px solid var(--border);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: var(--surface);
+    }
     @keyframes slideUp { from { transform:translateY(8px); opacity:0; } to { transform:translateY(0); opacity:1; } }
 
     .modal h3 {
@@ -577,24 +608,10 @@
     }
 
     /* ============================================================
-       REMINDERS PANEL (slide-in from right)
+       LEGACY PANEL
     ============================================================ */
     #reminders-panel {
-      position: fixed;
-      top: 48px;
-      right: 0;
-      bottom: 28px;
-      width: 320px;
-      background: var(--surface);
-      border-left: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      z-index: 90;
-      transform: translateX(100%);
-      transition: transform .2s ease;
-    }
-    #reminders-panel.open {
-      transform: translateX(0);
+      display: none;
     }
 
     .rp-header {
@@ -763,18 +780,6 @@
     .rp-add-btn:hover { background: rgba(200,168,75,.2); }
 
     /* ============================================================
-       MAIN SHIFT WHEN PANEL OPEN
-    ============================================================ */
-    body.panel-open #main {
-      margin-right: 320px;
-      transition: margin-right .2s ease;
-    }
-    body:not(.panel-open) #main {
-      margin-right: 0;
-      transition: margin-right .2s ease;
-    }
-
-    /* ============================================================
        TOAST NOTIFICATION (in-page fallback)
     ============================================================ */
     #toast {
@@ -804,8 +809,10 @@
        RESPONSIVE
     ============================================================ */
     @media (max-width: 700px) {
-      #reminders-panel { width: 100%; }
-      body.panel-open #main { margin-right: 0; }
+      .panel-window {
+        width: calc(100vw - 24px);
+        max-height: calc(100vh - 80px);
+      }
     }
     @media (max-width: 540px) {
       #topbar { padding: 0 12px; gap: 8px; }
@@ -850,8 +857,14 @@
       <span class="btn-label">NOTIFICATIONS</span>
     </button>
 
-    <!-- REMINDERS PANEL TOGGLE -->
-    <button id="btn-reminders" class="topbar-btn" onclick="toggleRemindersPanel()" title="Open reminders">
+    <button id="btn-tasks" class="topbar-btn" onclick="openTasksWindow()" title="Open tasks">
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M3 4.5h7"/><path d="M3 8h7"/><path d="M3 11.5h7"/><path d="M12.5 4.5l.75.75 1.75-1.75"/>
+      </svg>
+      <span class="btn-label">TASKS</span>
+    </button>
+
+    <button id="btn-reminders" class="topbar-btn" onclick="openRemindersWindow()" title="Open reminders">
       <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
         <circle cx="8" cy="8" r="6"/><path d="M8 5v3.5l2 2"/>
       </svg>
@@ -899,31 +912,8 @@
 
   <!-- ===================== REMINDERS PANEL ===================== -->
   <aside id="reminders-panel" role="complementary" aria-label="Reminders">
-    <div class="rp-header">
-      <h2>REMINDERS</h2>
-      <button class="icon-btn" onclick="toggleRemindersPanel()" title="Close panel" aria-label="Close reminders">
-        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/>
-        </svg>
-      </button>
-    </div>
-    <div class="rp-body" id="reminders-list">
-      <div class="rp-empty">NO REMINDERS</div>
-    </div>
-    <div class="rp-add-form">
-      <div class="rp-add-group">
-        <div class="rp-form-title">NEW TASK</div>
-        <input class="rp-input" id="task-title" type="text" placeholder="Title" maxlength="80" />
-        <input class="rp-input" id="task-desc"  type="text" placeholder="Description (optional)" maxlength="200" />
-        <button class="rp-add-btn" onclick="addTask()">+ ADD TASK</button>
-      </div>
-      <div class="rp-add-group">
-        <div class="rp-form-title">NEW REMINDER</div>
-        <input class="rp-input" id="rp-title" type="text" placeholder="Title" maxlength="80" />
-        <input class="rp-input" id="rp-desc"  type="text" placeholder="Description (optional)" maxlength="200" />
-        <input class="rp-input" id="rp-time"  type="datetime-local" />
-        <button class="rp-add-btn" onclick="addReminder()">+ ADD REMINDER</button>
-      </div>
+    <div class="rp-body">
+      <div class="rp-empty">LEGACY PANEL</div>
     </div>
   </aside>
 
@@ -1121,7 +1111,11 @@
     // A single container that shows/hides modals
     // ============================================================
 
-    function showModal(html) {
+    function showModal(html, options = {}) {
+      if (!options.preserveActiveToolWindow) {
+        _activeToolWindow = null;
+        updateToolWindowButtons();
+      }
       const container = document.getElementById('modal-container');
       container.innerHTML = `<div class="modal-overlay" id="modal-overlay">${html}</div>`;
       // Close on overlay click
@@ -1134,6 +1128,8 @@
     }
 
     function closeModal() {
+      _activeToolWindow = null;
+      updateToolWindowButtons();
       document.getElementById('modal-container').innerHTML = '';
     }
 
@@ -1574,10 +1570,32 @@
     // ============================================================
 
     let _pushSubscription = null; // current PushSubscription object
+    let _activeToolWindow = null;
+    let _deviceId = null;
     let _todos = [];
     let _todosError = null;
     let _reminders = [];
     let _remindersError = null;
+
+    function getDeviceId() {
+      if (_deviceId) return _deviceId;
+      try {
+        const existing = localStorage.getItem('linkboard_device_id');
+        if (existing) {
+          _deviceId = existing;
+          return _deviceId;
+        }
+        const created = (crypto && crypto.randomUUID)
+          ? crypto.randomUUID()
+          : `lb_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+        localStorage.setItem('linkboard_device_id', created);
+        _deviceId = created;
+        return _deviceId;
+      } catch {
+        _deviceId = `lb_fallback_${Date.now().toString(36)}`;
+        return _deviceId;
+      }
+    }
 
     /** Convert a base64url VAPID public key to a Uint8Array */
     function urlBase64ToUint8Array(base64String) {
@@ -1632,7 +1650,10 @@
         // Register subscription with our Next.js API
         const subRes = await fetch('/api/push/subscribe', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-device-id': getDeviceId()
+          },
           body: JSON.stringify({ subscription: subscription.toJSON() })
         });
         const subData = await subRes.json();
@@ -1660,7 +1681,10 @@
           // Re-register on load so the stored keys stay in sync.
           const res = await fetch('/api/push/subscribe', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'x-device-id': getDeviceId()
+            },
             body: JSON.stringify({ subscription: existing.toJSON() })
           });
           const data = await res.json();
@@ -1689,6 +1713,13 @@
       }
     }
 
+    function updateToolWindowButtons() {
+      const tasksBtn = document.getElementById('btn-tasks');
+      const remindersBtn = document.getElementById('btn-reminders');
+      if (tasksBtn) tasksBtn.classList.toggle('active', _activeToolWindow === 'tasks');
+      if (remindersBtn) remindersBtn.classList.toggle('active', _activeToolWindow === 'reminders');
+    }
+
     // Restore subscription state on load
     restorePushSubscription();
 
@@ -1698,9 +1729,13 @@
     // ============================================================
 
     async function apiJson(url, options = {}) {
+      const headers = new Headers(options.headers || {});
+      headers.set('x-device-id', getDeviceId());
+
       const response = await fetch(url, {
+        ...options,
         cache: 'no-store',
-        ...options
+        headers,
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -1723,7 +1758,7 @@
       } else {
         const err = todosResult.reason;
         _todos = [];
-        _todosError = err && err.status === 401 ? 'SIGN IN REQUIRED' : 'COULD NOT LOAD TASKS';
+        _todosError = 'COULD NOT LOAD TASKS';
       }
 
       if (remindersResult.status === 'fulfilled') {
@@ -1732,18 +1767,15 @@
       } else {
         const err = remindersResult.reason;
         _reminders = [];
-        _remindersError = err && err.status === 401
-          ? 'SIGN IN REQUIRED'
-          : 'COULD NOT LOAD REMINDERS';
+        _remindersError = 'COULD NOT LOAD REMINDERS';
       }
 
       renderReminders();
+      renderActiveToolWindow();
 
       if (!silent && (_todosError || _remindersError)) {
         showToast(
-          (_todosError === 'SIGN IN REQUIRED' || _remindersError === 'SIGN IN REQUIRED')
-            ? 'Sign in required for tasks and reminders.'
-            : 'Could not load the reminders panel.'
+          'Could not load the reminders panel.'
         );
       }
     }
@@ -1771,11 +1803,7 @@
         await loadReminders({ silent: true });
         showToast('Task saved.');
       } catch (err) {
-        showToast(
-          err && err.status === 401
-            ? 'Sign in required for tasks.'
-            : 'Could not save task.'
-        );
+        showToast('Could not save task.');
       }
     }
 
@@ -1811,11 +1839,7 @@
         await loadReminders({ silent: true });
         showToast('Reminder saved.');
       } catch (err) {
-        showToast(
-          err && err.status === 401
-            ? 'Sign in required for reminders.'
-            : 'Could not save reminder.'
-        );
+        showToast('Could not save reminder.');
       }
     }
 
@@ -1829,11 +1853,7 @@
           showToast(successMessage);
         }
       } catch (err) {
-        showToast(
-          err && err.status === 401
-            ? 'Sign in required for tasks.'
-            : 'Could not delete task.'
-        );
+        showToast('Could not delete task.');
       }
     }
 
@@ -1847,11 +1867,7 @@
           showToast(successMessage);
         }
       } catch (err) {
-        showToast(
-          err && err.status === 401
-            ? 'Sign in required for reminders.'
-            : 'Could not delete reminder.'
-        );
+        showToast('Could not delete reminder.');
       }
     }
 
@@ -1860,111 +1876,157 @@
     }
 
     function renderReminders() {
-      const todos = _todos;
-      const reminders = _reminders;
-      const container = document.getElementById('reminders-list');
       const badge = document.getElementById('reminder-badge');
 
-      const pending = todos.length + reminders.filter(r => !r.notified).length;
+      const pending = _reminders.filter(r => !r.notified).length;
       if (pending > 0) {
         badge.textContent = pending;
         badge.style.display = 'inline-flex';
       } else {
         badge.style.display = 'none';
       }
+    }
 
-      if (_todosError && _remindersError) {
-        container.innerHTML = `<div class="rp-empty">${_todosError}</div>`;
-        return;
+    function getTasksMarkup() {
+      if (_todosError) {
+        return `<div class="rp-empty">${_todosError}</div>`;
       }
 
-      const sortedReminders = [...reminders].sort((a, b) => {
+      if (_todos.length === 0) {
+        return '<div class="rp-empty">NO TASKS</div>';
+      }
+
+      return _todos.map(t => `
+        <div class="reminder-item">
+          <div class="reminder-item-row">
+            <div class="reminder-main">
+              <input
+                class="reminder-check"
+                type="checkbox"
+                title="Mark task as done"
+                aria-label="Mark task as done"
+                onchange="completeTask('${escHtml(t.id)}')"
+              />
+              <span class="reminder-title">${escHtml(t.title)}</span>
+            </div>
+            <button class="icon-btn danger" title="Delete task"
+              onclick="deleteTask('${escHtml(t.id)}')">
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+                <line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/>
+              </svg>
+            </button>
+          </div>
+          ${t.description ? `<div class="reminder-desc">${escHtml(t.description)}</div>` : ''}
+        </div>
+      `).join('');
+    }
+
+    function getRemindersMarkup() {
+      if (_remindersError) {
+        return `<div class="rp-empty">${_remindersError}</div>`;
+      }
+
+      const sortedReminders = [..._reminders].sort((a, b) => {
         if (a.notified !== b.notified) return a.notified ? 1 : -1;
         return new Date(a.due_date) - new Date(b.due_date);
       });
 
-      const tasksMarkup = _todosError
-        ? `<div class="rp-section-block"><div class="rp-section-title">TASKS</div><div class="rp-empty">${_todosError}</div></div>`
-        : todos.length === 0
-          ? `<div class="rp-section-block"><div class="rp-section-title">TASKS</div><div class="rp-empty">NO TASKS</div></div>`
-          : `
-            <div class="rp-section-block">
-              <div class="rp-section-title">TASKS</div>
-              ${todos.map(t => `
-                <div class="reminder-item">
-                  <div class="reminder-item-row">
-                    <div class="reminder-main">
-                      <input
-                        class="reminder-check"
-                        type="checkbox"
-                        title="Mark task as done"
-                        aria-label="Mark task as done"
-                        onchange="completeTask('${escHtml(t.id)}')"
-                      />
-                      <span class="reminder-title">${escHtml(t.title)}</span>
-                    </div>
-                    <button class="icon-btn danger" title="Delete task"
-                      onclick="deleteTask('${escHtml(t.id)}')">
-                      <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
-                        <line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/>
-                      </svg>
-                    </button>
-                  </div>
-                  ${t.description ? `<div class="reminder-desc">${escHtml(t.description)}</div>` : ''}
-                </div>
-              `).join('')}
-            </div>
-          `;
+      if (sortedReminders.length === 0) {
+        return '<div class="rp-empty">NO REMINDERS</div>';
+      }
 
-      const remindersMarkup = _remindersError
-        ? `<div class="rp-section-block"><div class="rp-section-title">REMINDERS</div><div class="rp-empty">${_remindersError}</div></div>`
-        : sortedReminders.length === 0
-          ? `<div class="rp-section-block"><div class="rp-section-title">REMINDERS</div><div class="rp-empty">NO REMINDERS</div></div>`
-          : `
-            <div class="rp-section-block">
-              <div class="rp-section-title">REMINDERS</div>
-              ${sortedReminders.map(r => {
-                const dt = new Date(r.due_date);
-                const dateStr = dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-                const timeStr = dt.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-                return `
-                  <div class="reminder-item${r.notified ? ' fired' : ''}">
-                    <div class="reminder-item-row">
-                      <span class="reminder-title">${escHtml(r.title)}</span>
-                      <button class="icon-btn danger" title="Delete reminder"
-                        onclick="deleteReminder('${escHtml(r.id)}')">
-                        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
-                          <line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/>
-                        </svg>
-                      </button>
-                    </div>
-                    ${r.description ? `<div class="reminder-desc">${escHtml(r.description)}</div>` : ''}
-                    <div class="reminder-item-row">
-                      <span class="reminder-time">${dateStr} ${timeStr}</span>
-                      ${r.notified ? '<span class="reminder-fired-label">FIRED</span>' : ''}
-                    </div>
-                  </div>
-                `;
-              }).join('')}
+      return sortedReminders.map(r => {
+        const dt = new Date(r.due_date);
+        const dateStr = dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        const timeStr = dt.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+        return `
+          <div class="reminder-item${r.notified ? ' fired' : ''}">
+            <div class="reminder-item-row">
+              <span class="reminder-title">${escHtml(r.title)}</span>
+              <button class="icon-btn danger" title="Delete reminder"
+                onclick="deleteReminder('${escHtml(r.id)}')">
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/>
+                </svg>
+              </button>
             </div>
-          `;
+            ${r.description ? `<div class="reminder-desc">${escHtml(r.description)}</div>` : ''}
+            <div class="reminder-item-row">
+              <span class="reminder-time">${dateStr} ${timeStr}</span>
+              ${r.notified ? '<span class="reminder-fired-label">FIRED</span>' : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
 
-      container.innerHTML = `
-        ${tasksMarkup}
-        ${remindersMarkup}
-      `;
+    function openTasksWindow() {
+      _activeToolWindow = 'tasks';
+      updateToolWindowButtons();
+      showModal(`
+        <div class="panel-window section-card">
+          <div class="section-header">
+            <span class="section-title">TASKS</span>
+            <div class="section-actions">
+              <button class="icon-btn" onclick="closeModal()" title="Close window" aria-label="Close window">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="panel-window-body">${getTasksMarkup()}</div>
+          <div class="panel-window-footer">
+            <div class="rp-form-title">NEW TASK</div>
+            <input class="rp-input" id="task-title" type="text" placeholder="Title" maxlength="80" />
+            <input class="rp-input" id="task-desc" type="text" placeholder="Description (optional)" maxlength="200" />
+            <button class="rp-add-btn" onclick="addTask()">+ ADD TASK</button>
+          </div>
+        </div>
+      `, { preserveActiveToolWindow: true });
+    }
+
+    function openRemindersWindow() {
+      _activeToolWindow = 'reminders';
+      updateToolWindowButtons();
+      showModal(`
+        <div class="panel-window section-card">
+          <div class="section-header">
+            <span class="section-title">REMINDERS</span>
+            <div class="section-actions">
+              <button class="icon-btn" onclick="closeModal()" title="Close window" aria-label="Close window">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="panel-window-body">${getRemindersMarkup()}</div>
+          <div class="panel-window-footer">
+            <div class="rp-form-title">NEW REMINDER</div>
+            <input class="rp-input" id="rp-title" type="text" placeholder="Title" maxlength="80" />
+            <input class="rp-input" id="rp-desc" type="text" placeholder="Description (optional)" maxlength="200" />
+            <input class="rp-input" id="rp-time" type="datetime-local" />
+            <button class="rp-add-btn" onclick="addReminder()">+ ADD REMINDER</button>
+          </div>
+        </div>
+      `, { preserveActiveToolWindow: true });
+    }
+
+    function renderActiveToolWindow() {
+      if (_activeToolWindow === 'tasks') {
+        openTasksWindow();
+      } else if (_activeToolWindow === 'reminders') {
+        openRemindersWindow();
+      }
     }
 
     // ============================================================
-    // REMINDERS PANEL TOGGLE
+    // TOOL WINDOWS
     // ============================================================
 
     function toggleRemindersPanel() {
-      const panel = document.getElementById('reminders-panel');
-      const isOpen = panel.classList.toggle('open');
-      document.body.classList.toggle('panel-open', isOpen);
-      document.getElementById('btn-reminders').classList.toggle('active', isOpen);
-      if (isOpen) loadReminders({ silent: true });
+      openRemindersWindow();
     }
 
     // ============================================================

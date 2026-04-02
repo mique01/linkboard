@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createTaskForUser, listTasksForUser } from '../../../lib/tasks-store';
-import { getAuthenticatedUser } from '../../../lib/supabase';
+import { createTaskForDevice, listTasksForDevice } from '../../../lib/tasks-store';
+import { getDeviceIdFromRequest } from '../../../lib/supabase';
 
 export async function GET(req: NextRequest) {
   try {
-    const user = await getAuthenticatedUser(req);
+    const deviceId = getDeviceIdFromRequest(req);
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!deviceId) {
+      return NextResponse.json({ error: 'Missing device id' }, { status: 400 });
     }
 
-    const tasks = await listTasksForUser(user.id);
+    const tasks = await listTasksForDevice(deviceId);
     return NextResponse.json({ tasks });
   } catch (error) {
     console.error('[tasks/get]', error);
@@ -20,10 +20,10 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const user = await getAuthenticatedUser(req);
+    const deviceId = getDeviceIdFromRequest(req);
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!deviceId) {
+      return NextResponse.json({ error: 'Missing device id' }, { status: 400 });
     }
 
     const body = await req.json();
@@ -45,8 +45,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid dueDate' }, { status: 400 });
     }
 
-    const task = await createTaskForUser({
-      userId: user.id,
+    const task = await createTaskForDevice({
+      deviceId,
       title,
       description,
       dueDate: parsedDueDate.toISOString(),

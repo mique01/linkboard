@@ -2,7 +2,8 @@ import { supabaseAdminRequest } from './supabase';
 
 export type TaskRecord = {
   id: string;
-  user_id: string;
+  user_id: string | null;
+  device_id: string | null;
   title: string;
   description: string | null;
   due_date: string;
@@ -12,7 +13,8 @@ export type TaskRecord = {
 
 export type PushSubscriptionRecord = {
   id: string;
-  user_id: string;
+  user_id: string | null;
+  device_id: string | null;
   endpoint: string;
   p256dh: string;
   auth: string;
@@ -21,7 +23,8 @@ export type PushSubscriptionRecord = {
 
 export type TodoRecord = {
   id: string;
-  user_id: string;
+  user_id: string | null;
+  device_id: string | null;
   title: string;
   description: string | null;
   created_at: string;
@@ -42,18 +45,18 @@ function buildQuery(params: Record<string, string | number | boolean | undefined
   return query ? `?${query}` : '';
 }
 
-export async function listTasksForUser(userId: string) {
+export async function listTasksForDevice(deviceId: string) {
   return supabaseAdminRequest<TaskRecord[]>(
     `/rest/v1/tasks${buildQuery({
-      select: 'id,user_id,title,description,due_date,notified,created_at',
-      user_id: `eq.${userId}`,
+      select: 'id,user_id,device_id,title,description,due_date,notified,created_at',
+      device_id: `eq.${deviceId}`,
       order: 'due_date.asc',
     })}`
   );
 }
 
-export async function createTaskForUser(input: {
-  userId: string;
+export async function createTaskForDevice(input: {
+  deviceId: string;
   title: string;
   description?: string | null;
   dueDate: string;
@@ -65,7 +68,7 @@ export async function createTaskForUser(input: {
     },
     body: JSON.stringify([
       {
-        user_id: input.userId,
+        device_id: input.deviceId,
         title: input.title,
         description: input.description ?? null,
         due_date: input.dueDate,
@@ -76,12 +79,12 @@ export async function createTaskForUser(input: {
   return rows[0] ?? null;
 }
 
-export async function deleteTaskForUser(taskId: string, userId: string) {
+export async function deleteTaskForDevice(taskId: string, deviceId: string) {
   const rows = await supabaseAdminRequest<TaskRecord[]>(
     `/rest/v1/tasks${buildQuery({
       select: 'id',
       id: `eq.${taskId}`,
-      user_id: `eq.${userId}`,
+      device_id: `eq.${deviceId}`,
     })}`,
     {
       method: 'DELETE',
@@ -94,18 +97,18 @@ export async function deleteTaskForUser(taskId: string, userId: string) {
   return rows.length > 0;
 }
 
-export async function listTodosForUser(userId: string) {
+export async function listTodosForDevice(deviceId: string) {
   return supabaseAdminRequest<TodoRecord[]>(
     `/rest/v1/todos${buildQuery({
-      select: 'id,user_id,title,description,created_at',
-      user_id: `eq.${userId}`,
+      select: 'id,user_id,device_id,title,description,created_at',
+      device_id: `eq.${deviceId}`,
       order: 'created_at.desc',
     })}`
   );
 }
 
-export async function createTodoForUser(input: {
-  userId: string;
+export async function createTodoForDevice(input: {
+  deviceId: string;
   title: string;
   description?: string | null;
 }) {
@@ -116,7 +119,7 @@ export async function createTodoForUser(input: {
     },
     body: JSON.stringify([
       {
-        user_id: input.userId,
+        device_id: input.deviceId,
         title: input.title,
         description: input.description ?? null,
       },
@@ -126,12 +129,12 @@ export async function createTodoForUser(input: {
   return rows[0] ?? null;
 }
 
-export async function deleteTodoForUser(todoId: string, userId: string) {
+export async function deleteTodoForDevice(todoId: string, deviceId: string) {
   const rows = await supabaseAdminRequest<TodoRecord[]>(
     `/rest/v1/todos${buildQuery({
       select: 'id',
       id: `eq.${todoId}`,
-      user_id: `eq.${userId}`,
+      device_id: `eq.${deviceId}`,
     })}`,
     {
       method: 'DELETE',
@@ -147,7 +150,7 @@ export async function deleteTodoForUser(todoId: string, userId: string) {
 export async function listDueUnnotifiedTasks(nowIso: string) {
   return supabaseAdminRequest<TaskRecord[]>(
     `/rest/v1/tasks${buildQuery({
-      select: 'id,user_id,title,description,due_date,notified,created_at',
+      select: 'id,user_id,device_id,title,description,due_date,notified,created_at',
       due_date: `lte.${nowIso}`,
       notified: 'eq.false',
       order: 'due_date.asc',
@@ -159,7 +162,7 @@ export async function listDueUnnotifiedTasks(nowIso: string) {
 export async function claimTaskNotification(taskId: string) {
   const rows = await supabaseAdminRequest<TaskRecord[]>(
     `/rest/v1/tasks${buildQuery({
-      select: 'id,user_id,title,description,due_date,notified,created_at',
+      select: 'id,user_id,device_id,title,description,due_date,notified,created_at',
       id: `eq.${taskId}`,
       notified: 'eq.false',
     })}`,
@@ -190,13 +193,13 @@ export async function setTaskNotified(taskId: string, notified: boolean) {
 }
 
 export async function upsertPushSubscription(input: {
-  userId: string;
+  deviceId: string;
   endpoint: string;
   p256dh: string;
   auth: string;
 }) {
   const rows = await supabaseAdminRequest<PushSubscriptionRecord[]>(
-    '/rest/v1/push_subscriptions?on_conflict=user_id,endpoint',
+    '/rest/v1/push_subscriptions?on_conflict=device_id,endpoint',
     {
       method: 'POST',
       headers: {
@@ -204,7 +207,7 @@ export async function upsertPushSubscription(input: {
       },
       body: JSON.stringify([
         {
-          user_id: input.userId,
+          device_id: input.deviceId,
           endpoint: input.endpoint,
           p256dh: input.p256dh,
           auth: input.auth,
@@ -216,11 +219,11 @@ export async function upsertPushSubscription(input: {
   return rows[0] ?? null;
 }
 
-export async function listPushSubscriptionsForUser(userId: string) {
+export async function listPushSubscriptionsForDevice(deviceId: string) {
   return supabaseAdminRequest<PushSubscriptionRecord[]>(
     `/rest/v1/push_subscriptions${buildQuery({
-      select: 'id,user_id,endpoint,p256dh,auth,created_at',
-      user_id: `eq.${userId}`,
+      select: 'id,user_id,device_id,endpoint,p256dh,auth,created_at',
+      device_id: `eq.${deviceId}`,
       order: 'created_at.desc',
     })}`
   );

@@ -3,7 +3,7 @@ import {
   claimTaskNotification,
   deletePushSubscriptionById,
   listDueUnnotifiedTasks,
-  listPushSubscriptionsForUser,
+  listPushSubscriptionsForDevice,
   setTaskNotified,
 } from '../../../lib/tasks-store';
 import { hasVapidConfiguration, sendPushPayload } from '../../../lib/push';
@@ -55,7 +55,13 @@ export async function GET(req: NextRequest) {
         continue;
       }
 
-      const subscriptions = await listPushSubscriptionsForUser(task.user_id);
+      if (!task.device_id) {
+        await setTaskNotified(task.id, false);
+        retriedLater += 1;
+        continue;
+      }
+
+      const subscriptions = await listPushSubscriptionsForDevice(task.device_id);
 
       if (subscriptions.length === 0) {
         await setTaskNotified(task.id, false);

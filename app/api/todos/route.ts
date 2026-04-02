@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createTodoForUser, listTodosForUser } from '../../../lib/tasks-store';
-import { getAuthenticatedUser } from '../../../lib/supabase';
+import { createTodoForDevice, listTodosForDevice } from '../../../lib/tasks-store';
+import { getDeviceIdFromRequest } from '../../../lib/supabase';
 
 export async function GET(req: NextRequest) {
   try {
-    const user = await getAuthenticatedUser(req);
+    const deviceId = getDeviceIdFromRequest(req);
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!deviceId) {
+      return NextResponse.json({ error: 'Missing device id' }, { status: 400 });
     }
 
-    const todos = await listTodosForUser(user.id);
+    const todos = await listTodosForDevice(deviceId);
     return NextResponse.json({ todos });
   } catch (error) {
     console.error('[todos/get]', error);
@@ -20,10 +20,10 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const user = await getAuthenticatedUser(req);
+    const deviceId = getDeviceIdFromRequest(req);
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!deviceId) {
+      return NextResponse.json({ error: 'Missing device id' }, { status: 400 });
     }
 
     const body = await req.json();
@@ -35,8 +35,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'title is required' }, { status: 400 });
     }
 
-    const todo = await createTodoForUser({
-      userId: user.id,
+    const todo = await createTodoForDevice({
+      deviceId,
       title,
       description,
     });

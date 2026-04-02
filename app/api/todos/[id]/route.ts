@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { deleteTodoForUser } from '../../../../lib/tasks-store';
-import { getAuthenticatedUser } from '../../../../lib/supabase';
+import { deleteTodoForDevice } from '../../../../lib/tasks-store';
+import { getDeviceIdFromRequest } from '../../../../lib/supabase';
 
 type RouteContext = {
   params: Promise<{
@@ -10,10 +10,10 @@ type RouteContext = {
 
 export async function DELETE(req: NextRequest, context: RouteContext) {
   try {
-    const user = await getAuthenticatedUser(req);
+    const deviceId = getDeviceIdFromRequest(req);
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!deviceId) {
+      return NextResponse.json({ error: 'Missing device id' }, { status: 400 });
     }
 
     const { id } = await context.params;
@@ -22,7 +22,7 @@ export async function DELETE(req: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Missing todo id' }, { status: 400 });
     }
 
-    const deleted = await deleteTodoForUser(id, user.id);
+    const deleted = await deleteTodoForDevice(id, deviceId);
 
     if (!deleted) {
       return NextResponse.json({ error: 'Todo not found' }, { status: 404 });

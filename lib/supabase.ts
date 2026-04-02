@@ -8,11 +8,6 @@ type Json =
   | Json[]
   | { [key: string]: Json };
 
-export type AuthenticatedUser = {
-  id: string;
-  email?: string | null;
-};
-
 function requiredEnv(name: string) {
   const value = process.env[name];
 
@@ -39,101 +34,11 @@ export function getSupabaseServiceRoleKey() {
   return requiredEnv('SUPABASE_SERVICE_ROLE_KEY');
 }
 
-function isJwtLike(value: string) {
-  return /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(value);
-}
-
-function parseTokenCandidate(value: string) {
-  if (!value) {
-    return null;
-  }
-
-  if (isJwtLike(value)) {
-    return value;
-  }
-
-  const candidates = [value];
-
-  try {
-    const decoded = decodeURIComponent(value);
-    if (decoded !== value) {
-      candidates.push(decoded);
-    }
-  } catch {
-    // Ignore malformed cookie encoding.
-  }
-
-  for (const candidate of candidates) {
-    try {
-      const parsed = JSON.parse(candidate) as Json;
-
-      if (
-        parsed &&
-        typeof parsed === 'object' &&
-        !Array.isArray(parsed) &&
-        typeof parsed.access_token === 'string' &&
-        isJwtLike(parsed.access_token)
-      ) {
-        return parsed.access_token;
-      }
-
-      if (
-        Array.isArray(parsed) &&
-        typeof parsed[0] === 'string' &&
-        isJwtLike(parsed[0])
-      ) {
-        return parsed[0];
-      }
-    } catch {
-      // Not JSON.
-    }
-  }
-
-  return null;
-}
-
-function extractAccessTokenFromRequest(req: NextRequest) {
-  const authorization = req.headers.get('authorization');
-
-  if (authorization?.startsWith('Bearer ')) {
-    return authorization.slice('Bearer '.length).trim();
-  }
-
-  const priorityCookieNames = [
-    'sb-access-token',
-    'supabase-auth-token',
-    'access-token',
-  ];
-
-  for (const name of priorityCookieNames) {
-    const cookieValue = req.cookies.get(name)?.value;
-    const token = cookieValue ? parseTokenCandidate(cookieValue) : null;
-
-    if (token) {
-      return token;
-    }
-  }
-
-  for (const cookie of req.cookies.getAll()) {
-    if (!cookie.name.startsWith('sb-')) {
-      continue;
-    }
-
-    const token = parseTokenCandidate(cookie.value);
-    if (token) {
-      return token;
-    }
-  }
-
-  return null;
-}
-
 async function fetchSupabase<T>(
   path: string,
   init: RequestInit,
   options?: {
     useServiceRole?: boolean;
-    accessToken?: string;
   }
 ) {
   const apiKey = options?.useServiceRole
@@ -150,9 +55,7 @@ async function fetchSupabase<T>(
   headers.set('apikey', apiKey);
   headers.set('Content-Type', 'application/json');
 
-  if (options?.accessToken) {
-    headers.set('Authorization', `Bearer ${options.accessToken}`);
-  } else if (options?.useServiceRole) {
+  if (options?.useServiceRole) {
     headers.set('Authorization', `Bearer ${apiKey}`);
   }
 
@@ -184,29 +87,22 @@ async function fetchSupabase<T>(
   return data as T;
 }
 
-export async function getAuthenticatedUser(req: NextRequest) {
-  const accessToken = extractAccessTokenFromRequest(req);
-
-  if (!accessToken) {
-    return null;
-  }
-
-  try {
-    const user = await fetchSupabase<AuthenticatedUser>('/auth/v1/user', {
-      method: 'GET',
-    }, {
-      accessToken,
-    });
-
-    return user ?? null;
-  } catch {
-    return null;
-  }
-}
-
 export async function supabaseAdminRequest<T>(
   path: string,
   init: RequestInit = {}
 ) {
   return fetchSupabase<T>(path, init, { useServiceRole: true });
+}
+
+export function getDeviceIdFromRequest(req: NextRequest) {
+  const deviceId =
+    req.headers.get('x-device-id')?.trim() ??
+    req.nextUrl.searchParams.get('deviceId')?.trim() ??
+    '';
+
+  if (!deviceId) {
+    return null;
+  }
+
+  return deviceId.slice(0, 128);
 }

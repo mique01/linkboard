@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { PushSubscriptionJSON } from 'web-push';
 import { upsertPushSubscription } from '../../../../lib/tasks-store';
-import { getAuthenticatedUser } from '../../../../lib/supabase';
+import { getDeviceIdFromRequest } from '../../../../lib/supabase';
 
 export async function POST(req: NextRequest) {
   try {
-    const user = await getAuthenticatedUser(req);
+    const deviceId = getDeviceIdFromRequest(req);
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!deviceId) {
+      return NextResponse.json({ error: 'Missing device id' }, { status: 400 });
     }
 
     const body = await req.json();
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     }
 
     const saved = await upsertPushSubscription({
-      userId: user.id,
+      deviceId,
       endpoint: subscription.endpoint,
       p256dh,
       auth,
