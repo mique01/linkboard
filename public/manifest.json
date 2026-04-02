@@ -1,0 +1,17 @@
+{
+  "name": "Linkboard",
+  "short_name": "Linkboard",
+  "description": "A fast, local link organiser with reminders.",
+  "start_url": "/dashboard.html",
+  "display": "standalone",
+  "background_color": "#0d0d0d",
+  "theme_color": "#0d0d0d",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

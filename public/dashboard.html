@@ -1,0 +1,1873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LINKBOARD</title>
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#111214" />
+  <link rel="apple-touch-icon" href="/icon.png" />
+  <style>
+    /* ============================================================
+       RESET & BASE
+    ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #111214;
+      --surface:    #18191d;
+      --surface2:   #202227;
+      --border:     #2e3038;
+      --border-hi:  #42454f;
+      --text:       #dde1e8;
+      --text-dim:   #6e7380;
+      --text-muted: #42454f;
+      --accent:     #c8a84b;   /* amber / terminal gold */
+      --accent-dim: #8a7030;
+      --danger:     #c0392b;
+      --radius:     3px;
+      --font-mono:  'Courier New', Courier, monospace;
+      --font-ui:    'Inter', system-ui, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 14px;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    /* ============================================================
+       SCROLLBAR
+    ============================================================ */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 3px; }
+
+    /* ============================================================
+       HEADER / TOPBAR
+    ============================================================ */
+    #topbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 0 20px;
+      height: 48px;
+    }
+
+    #topbar .logo {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      color: var(--accent);
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    #topbar .divider {
+      width: 1px;
+      height: 20px;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+
+    /* Search bar */
+    #search-wrap {
+      flex: 1;
+      max-width: 340px;
+      position: relative;
+    }
+    #search-wrap svg {
+      position: absolute;
+      left: 9px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-dim);
+      pointer-events: none;
+    }
+    #search {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 6px 10px 6px 30px;
+      outline: none;
+      transition: border-color .15s;
+    }
+    #search::placeholder { color: var(--text-muted); }
+    #search:focus { border-color: var(--accent-dim); }
+
+    #topbar .spacer { flex: 1; }
+
+    /* Add section button */
+    #btn-add-section {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: transparent;
+      border: 1px solid var(--accent-dim);
+      border-radius: var(--radius);
+      color: var(--accent);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: .08em;
+      padding: 5px 12px;
+      cursor: pointer;
+      transition: background .15s, border-color .15s;
+      white-space: nowrap;
+    }
+    #btn-add-section:hover {
+      background: rgba(200,168,75,.08);
+      border-color: var(--accent);
+    }
+    #btn-add-section svg { flex-shrink: 0; }
+
+    /* ============================================================
+       MAIN LAYOUT
+    ============================================================ */
+    #main {
+      padding: 24px 20px 60px;
+    }
+
+    /* ============================================================
+       EMPTY STATE
+    ============================================================ */
+    #empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 100px 20px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+    #empty-state .es-icon {
+      width: 48px;
+      height: 48px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--border-hi);
+    }
+    #empty-state h2 {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      letter-spacing: .12em;
+      color: var(--text-dim);
+    }
+    #empty-state p {
+      font-size: 12px;
+      max-width: 280px;
+    }
+    #empty-state button {
+      background: transparent;
+      border: 1px solid var(--accent-dim);
+      border-radius: var(--radius);
+      color: var(--accent);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 7px 18px;
+      cursor: pointer;
+      letter-spacing: .08em;
+      transition: background .15s;
+    }
+    #empty-state button:hover { background: rgba(200,168,75,.08); }
+
+    /* ============================================================
+       SECTIONS GRID
+    ============================================================ */
+    #sections-grid {
+      display: grid;
+      /* auto-fill columns, min 280px wide */
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+      align-items: start;
+    }
+
+    /* ============================================================
+       SECTION CARD
+    ============================================================ */
+    .section-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      display: flex;
+      flex-direction: column;
+      transition: border-color .15s;
+      cursor: default;
+    }
+    .section-card.drag-over {
+      border-color: var(--accent-dim);
+      background: var(--surface2);
+    }
+    .section-card.dragging {
+      opacity: .45;
+    }
+
+    /* Section header */
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      cursor: grab;
+      user-select: none;
+    }
+    .section-header:active { cursor: grabbing; }
+
+    .section-drag-handle {
+      color: var(--text-muted);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+    }
+
+    .section-title {
+      flex: 1;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: .12em;
+      color: var(--accent);
+      text-transform: uppercase;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .section-title-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid var(--accent-dim);
+      outline: none;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: .12em;
+      color: var(--accent);
+      text-transform: uppercase;
+      padding: 1px 0;
+      min-width: 0;
+    }
+
+    .section-actions {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+
+    /* Icon buttons (edit/delete inside sections) */
+    .icon-btn {
+      background: none;
+      border: none;
+      padding: 4px;
+      border-radius: var(--radius);
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      transition: color .12s, background .12s;
+      line-height: 0;
+    }
+    .icon-btn:hover { color: var(--text-dim); background: var(--surface2); }
+    .icon-btn.danger:hover { color: var(--danger); background: rgba(192,57,43,.1); }
+
+    /* Links list */
+    .links-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      padding: 6px;
+      min-height: 8px;
+    }
+
+    /* Link tile */
+    .link-tile {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: var(--radius);
+      border: 1px solid transparent;
+      background: var(--surface2);
+      transition: border-color .12s, background .12s;
+      cursor: grab;
+      group: true;
+    }
+    .link-tile:active { cursor: grabbing; }
+    .link-tile.dragging { opacity: .4; }
+    .link-tile.drag-over-top {
+      border-top-color: var(--accent-dim);
+    }
+    .link-tile.drag-over-bottom {
+      border-bottom-color: var(--accent-dim);
+    }
+
+    .link-tile:hover { border-color: var(--border-hi); }
+
+    .link-favicon {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+      border-radius: 2px;
+      object-fit: cover;
+    }
+
+    .link-title {
+      flex: 1;
+      font-size: 12px;
+      color: var(--text);
+      text-decoration: none;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .link-title:hover { color: var(--accent); }
+
+    .link-actions {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      opacity: 0;
+      transition: opacity .12s;
+      flex-shrink: 0;
+    }
+    .link-tile:hover .link-actions { opacity: 1; }
+
+    /* Add link button at bottom of section */
+    .btn-add-link {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+      background: none;
+      border: none;
+      border-top: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 11px;
+      font-family: var(--font-mono);
+      letter-spacing: .06em;
+      padding: 8px 12px;
+      cursor: pointer;
+      text-align: left;
+      border-radius: 0 0 var(--radius) var(--radius);
+      transition: color .12s, background .12s;
+    }
+    .btn-add-link:hover {
+      color: var(--text-dim);
+      background: var(--surface2);
+    }
+
+    /* ============================================================
+       MODAL / DIALOG
+    ============================================================ */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.7);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: fadeIn .1s ease;
+    }
+    @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border-hi);
+      border-radius: var(--radius);
+      width: 100%;
+      max-width: 400px;
+      padding: 24px;
+      animation: slideUp .15s ease;
+    }
+    @keyframes slideUp { from { transform:translateY(8px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+
+    .modal h3 {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: .14em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+
+    .form-field {
+      margin-bottom: 14px;
+    }
+    .form-field label {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: .1em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .form-field input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 8px 10px;
+      outline: none;
+      transition: border-color .15s;
+    }
+    .form-field input:focus { border-color: var(--accent-dim); }
+    .form-field input::placeholder { color: var(--text-muted); }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 20px;
+    }
+
+    .btn-cancel {
+      background: none;
+      border: 1px solid var(--border-hi);
+      border-radius: var(--radius);
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 7px 16px;
+      cursor: pointer;
+      transition: border-color .12s, color .12s;
+    }
+    .btn-cancel:hover { border-color: var(--text-dim); color: var(--text); }
+
+    .btn-confirm {
+      background: rgba(200,168,75,.12);
+      border: 1px solid var(--accent-dim);
+      border-radius: var(--radius);
+      color: var(--accent);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 7px 16px;
+      cursor: pointer;
+      transition: background .12s, border-color .12s;
+    }
+    .btn-confirm:hover { background: rgba(200,168,75,.22); border-color: var(--accent); }
+
+    /* Confirm delete modal */
+    .modal .confirm-text {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+    }
+    .modal .confirm-name {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text);
+      margin-top: 6px;
+    }
+    .btn-danger {
+      background: rgba(192,57,43,.1);
+      border: 1px solid rgba(192,57,43,.4);
+      border-radius: var(--radius);
+      color: var(--danger);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 7px 16px;
+      cursor: pointer;
+      transition: background .12s;
+    }
+    .btn-danger:hover { background: rgba(192,57,43,.22); }
+
+    /* ============================================================
+       NO RESULTS
+    ============================================================ */
+    #no-results {
+      display: none;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-muted);
+      padding: 40px 0;
+      text-align: center;
+      letter-spacing: .06em;
+    }
+
+    /* ============================================================
+       STATUS BAR
+    ============================================================ */
+    #statusbar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 0 20px;
+      height: 28px;
+      z-index: 50;
+    }
+    .statusbar-item {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      letter-spacing: .06em;
+    }
+    .statusbar-item span { color: var(--text-dim); }
+
+    /* ============================================================
+       TOPBAR UTILITY BUTTONS (notifications / install)
+    ============================================================ */
+    .topbar-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: .07em;
+      padding: 5px 10px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: border-color .15s, color .15s;
+    }
+    .topbar-btn:hover {
+      border-color: var(--border-hi);
+      color: var(--text-dim);
+    }
+    .topbar-btn.active {
+      border-color: var(--accent-dim);
+      color: var(--accent);
+    }
+    #btn-install { display: none; } /* shown only when install prompt available */
+
+    /* Reminder badge on topbar button */
+    .reminder-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 16px;
+      height: 16px;
+      padding: 0 4px;
+      background: var(--accent);
+      color: #000;
+      border-radius: 8px;
+      font-size: 9px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    /* ============================================================
+       REMINDERS PANEL (slide-in from right)
+    ============================================================ */
+    #reminders-panel {
+      position: fixed;
+      top: 48px;
+      right: 0;
+      bottom: 28px;
+      width: 320px;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      z-index: 90;
+      transform: translateX(100%);
+      transition: transform .2s ease;
+    }
+    #reminders-panel.open {
+      transform: translateX(0);
+    }
+
+    .rp-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .rp-header h2 {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: .14em;
+      color: var(--accent);
+      text-transform: uppercase;
+    }
+
+    .rp-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .rp-empty {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 32px 0;
+      letter-spacing: .06em;
+    }
+    .rp-section-title {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: .12em;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+
+    /* Individual reminder item */
+    .reminder-item {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      transition: border-color .12s;
+    }
+    .reminder-item.fired {
+      border-color: var(--accent-dim);
+      opacity: .55;
+    }
+    .reminder-item-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .reminder-main {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      min-width: 0;
+      flex: 1;
+    }
+    .reminder-check {
+      width: 14px;
+      height: 14px;
+      margin-top: 2px;
+      flex-shrink: 0;
+      cursor: pointer;
+      accent-color: var(--accent);
+    }
+    .reminder-title {
+      font-size: 12px;
+      color: var(--text);
+      font-weight: 500;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .reminder-desc {
+      font-size: 11px;
+      color: var(--text-dim);
+      line-height: 1.4;
+    }
+    .reminder-time {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .reminder-fired-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--accent-dim);
+      letter-spacing: .07em;
+    }
+
+    /* Add reminder form at bottom of panel */
+    .rp-add-form {
+      border-top: 1px solid var(--border);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .rp-add-form .rp-form-title {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+    .rp-input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 7px 9px;
+      outline: none;
+      transition: border-color .15s;
+    }
+    .rp-input:focus { border-color: var(--accent-dim); }
+    .rp-input::placeholder { color: var(--text-muted); }
+
+    .rp-add-btn {
+      background: rgba(200,168,75,.1);
+      border: 1px solid var(--accent-dim);
+      border-radius: var(--radius);
+      color: var(--accent);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: .08em;
+      padding: 7px 10px;
+      cursor: pointer;
+      transition: background .12s;
+    }
+    .rp-add-btn:hover { background: rgba(200,168,75,.2); }
+
+    /* ============================================================
+       MAIN SHIFT WHEN PANEL OPEN
+    ============================================================ */
+    body.panel-open #main {
+      margin-right: 320px;
+      transition: margin-right .2s ease;
+    }
+    body:not(.panel-open) #main {
+      margin-right: 0;
+      transition: margin-right .2s ease;
+    }
+
+    /* ============================================================
+       TOAST NOTIFICATION (in-page fallback)
+    ============================================================ */
+    #toast {
+      position: fixed;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%) translateY(12px);
+      background: var(--surface2);
+      border: 1px solid var(--accent-dim);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 9px 18px;
+      z-index: 300;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s, transform .2s;
+      white-space: nowrap;
+    }
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ============================================================
+       RESPONSIVE
+    ============================================================ */
+    @media (max-width: 700px) {
+      #reminders-panel { width: 100%; }
+      body.panel-open #main { margin-right: 0; }
+    }
+    @media (max-width: 540px) {
+      #topbar { padding: 0 12px; gap: 8px; }
+      #main { padding: 16px 12px 48px; }
+      #search-wrap { max-width: 140px; }
+      #btn-add-section .btn-text { display: none; }
+      .topbar-btn .btn-label { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===================== TOPBAR ===================== -->
+  <header id="topbar">
+    <div class="logo">LINKBOARD</div>
+    <div class="divider"></div>
+
+    <!-- Search -->
+    <div id="search-wrap">
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+        <circle cx="6.5" cy="6.5" r="4.5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/>
+      </svg>
+      <input id="search" type="text" placeholder="search links..." autocomplete="off" />
+    </div>
+
+    <div class="spacer"></div>
+
+    <!-- PWA INSTALL — shown when browser install prompt is available -->
+    <button id="btn-install" class="topbar-btn" onclick="pwaInstall()" title="Install as desktop app">
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M8 2v8M5 7l3 3 3-3"/><rect x="2" y="11" width="12" height="3" rx="1"/>
+      </svg>
+      <span class="btn-label">INSTALL APP</span>
+    </button>
+
+    <!-- NOTIFICATION PERMISSION -->
+    <button id="btn-notif" class="topbar-btn" onclick="requestNotifPermission()" title="Enable desktop notifications">
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M8 1a5 5 0 0 1 5 5v3l1.5 2.5H1.5L3 9V6a5 5 0 0 1 5-5z"/>
+        <path d="M6.5 13.5a1.5 1.5 0 0 0 3 0"/>
+      </svg>
+      <span class="btn-label">NOTIFICATIONS</span>
+    </button>
+
+    <!-- REMINDERS PANEL TOGGLE -->
+    <button id="btn-reminders" class="topbar-btn" onclick="toggleRemindersPanel()" title="Open reminders">
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+        <circle cx="8" cy="8" r="6"/><path d="M8 5v3.5l2 2"/>
+      </svg>
+      <span class="btn-label">REMINDERS</span>
+      <span id="reminder-badge" class="reminder-badge" style="display:none">0</span>
+    </button>
+
+    <!-- Add Section -->
+    <button id="btn-add-section" onclick="openAddSection()">
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/>
+      </svg>
+      <span class="btn-text">NEW SECTION</span>
+    </button>
+  </header>
+
+  <!-- ===================== MAIN ===================== -->
+  <main id="main">
+    <!-- Empty state shown when no sections exist -->
+    <div id="empty-state">
+      <div class="es-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+          <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/>
+          <line x1="3" y1="9" x2="9" y2="9"/>
+        </svg>
+      </div>
+      <h2>NO SECTIONS YET</h2>
+      <p>Create your first section to start organising your links.</p>
+      <button onclick="openAddSection()">+ ADD SECTION</button>
+    </div>
+
+    <!-- No search results -->
+    <div id="no-results">NO MATCHES FOUND</div>
+
+    <!-- Sections grid -->
+    <div id="sections-grid"></div>
+  </main>
+
+  <!-- ===================== STATUS BAR ===================== -->
+  <footer id="statusbar">
+    <div class="statusbar-item">SECTIONS <span id="stat-sections">0</span></div>
+    <div class="statusbar-item">LINKS <span id="stat-links">0</span></div>
+    <div class="statusbar-item" style="margin-left:auto;" id="stat-push">PUSH: INACTIVE</div>
+  </footer>
+
+  <!-- ===================== REMINDERS PANEL ===================== -->
+  <aside id="reminders-panel" role="complementary" aria-label="Reminders">
+    <div class="rp-header">
+      <h2>REMINDERS</h2>
+      <button class="icon-btn" onclick="toggleRemindersPanel()" title="Close panel" aria-label="Close reminders">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/>
+        </svg>
+      </button>
+    </div>
+    <div class="rp-body" id="reminders-list">
+      <div class="rp-empty">NO REMINDERS</div>
+    </div>
+    <div class="rp-add-form">
+      <div class="rp-form-title">NEW TASK</div>
+      <input class="rp-input" id="rp-title" type="text" placeholder="Title" maxlength="80" />
+      <input class="rp-input" id="rp-desc"  type="text" placeholder="Description (optional)" maxlength="200" />
+      <input class="rp-input" id="rp-time"  type="datetime-local" />
+      <button class="rp-add-btn" onclick="addReminder()">+ ADD TASK</button>
+    </div>
+  </aside>
+
+  <!-- ===================== TOAST ===================== -->
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <!-- ===================== MODAL CONTAINER ===================== -->
+  <div id="modal-container"></div>
+
+  <!-- ===================== JAVASCRIPT ===================== -->
+  <script>
+    // ============================================================
+    // DATA MODEL & PERSISTENCE
+    // All data is stored in localStorage under the key "linkboard"
+    // Structure: { sections: [ { id, title, links: [ { id, title, url } ] } ] }
+    // ============================================================
+
+    const STORAGE_KEY = 'linkboard';
+
+    /** Load data from localStorage */
+    function loadData() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { sections: [] };
+      } catch {
+        return { sections: [] };
+      }
+    }
+
+    /** Save data to localStorage and re-render */
+    function saveData(data) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      render(data);
+    }
+
+    /** Generate a simple unique ID */
+    function uid() {
+      return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    }
+
+    // ============================================================
+    // FAVICON HELPER
+    // Uses Google's favicon service as a fallback
+    // ============================================================
+    function faviconUrl(url) {
+      try {
+        const origin = new URL(url).origin;
+        return `https://www.google.com/s2/favicons?sz=32&domain_url=${encodeURIComponent(origin)}`;
+      } catch {
+        return '';
+      }
+    }
+
+    // ============================================================
+    // RENDER ENGINE
+    // Full re-render on every data change for simplicity
+    // ============================================================
+    function render(data) {
+      const grid = document.getElementById('sections-grid');
+      const emptyState = document.getElementById('empty-state');
+      const noResults = document.getElementById('no-results');
+      const query = document.getElementById('search').value.trim().toLowerCase();
+
+      // Update status bar
+      const totalLinks = data.sections.reduce((a, s) => a + s.links.length, 0);
+      document.getElementById('stat-sections').textContent = data.sections.length;
+      document.getElementById('stat-links').textContent = totalLinks;
+
+      // Show/hide empty state
+      if (data.sections.length === 0) {
+        emptyState.style.display = 'flex';
+        noResults.style.display = 'none';
+        grid.innerHTML = '';
+        return;
+      }
+      emptyState.style.display = 'none';
+
+      // Build HTML for each section
+      grid.innerHTML = '';
+      let anyVisible = false;
+
+      data.sections.forEach((section, sIdx) => {
+        // Filter links based on search query
+        const visibleLinks = query
+          ? section.links.filter(l =>
+              l.title.toLowerCase().includes(query) ||
+              l.url.toLowerCase().includes(query)
+            )
+          : section.links;
+
+        // If searching, hide sections with no matching links
+        if (query && visibleLinks.length === 0) return;
+        anyVisible = true;
+
+        const card = document.createElement('div');
+        card.className = 'section-card';
+        card.dataset.sectionId = section.id;
+        card.draggable = true;
+
+        // Section header
+        card.innerHTML = `
+          <div class="section-header" title="Drag to reorder">
+            <span class="section-drag-handle">
+              <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor">
+                <circle cx="3" cy="2.5" r="1.2"/><circle cx="7" cy="2.5" r="1.2"/>
+                <circle cx="3" cy="7" r="1.2"/><circle cx="7" cy="7" r="1.2"/>
+                <circle cx="3" cy="11.5" r="1.2"/><circle cx="7" cy="11.5" r="1.2"/>
+              </svg>
+            </span>
+            <span class="section-title" ondblclick="startRenameSection(this, '${escHtml(section.id)}')"
+              title="Double-click to rename">${escHtml(section.title)}</span>
+            <div class="section-actions">
+              <button class="icon-btn" title="Rename section"
+                onclick="openRenameSection('${escHtml(section.id)}')">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M11 2l3 3-9 9H2v-3L11 2z"/>
+                </svg>
+              </button>
+              <button class="icon-btn danger" title="Delete section"
+                onclick="openDeleteSection('${escHtml(section.id)}')">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <polyline points="2 4 14 4"/><path d="M5 4V2h6v2"/><path d="M6 7v5M10 7v5"/>
+                  <rect x="3" y="4" width="10" height="10" rx="1"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="links-list" data-section-id="${escHtml(section.id)}"></div>
+          <button class="btn-add-link" onclick="openAddLink('${escHtml(section.id)}')">
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/>
+            </svg>
+            ADD LINK
+          </button>
+        `;
+
+        // Build link tiles
+        const linksList = card.querySelector('.links-list');
+        visibleLinks.forEach((link, lIdx) => {
+          const realIdx = section.links.indexOf(link); // actual index (matters when filtered)
+          const tile = document.createElement('div');
+          tile.className = 'link-tile';
+          tile.draggable = true;
+          tile.dataset.linkId = link.id;
+          tile.dataset.sectionId = section.id;
+
+          const favicon = faviconUrl(link.url);
+          tile.innerHTML = `
+            ${favicon
+              ? `<img class="link-favicon" src="${escHtml(favicon)}" alt="" loading="lazy"
+                   onerror="this.style.display='none'">`
+              : ''
+            }
+            <a class="link-title" href="${escHtml(link.url)}" target="_blank" rel="noopener noreferrer"
+               title="${escHtml(link.url)}">${escHtml(link.title)}</a>
+            <div class="link-actions">
+              <button class="icon-btn" title="Edit link"
+                onclick="openEditLink('${escHtml(section.id)}','${escHtml(link.id)}')">
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M11 2l3 3-9 9H2v-3L11 2z"/>
+                </svg>
+              </button>
+              <button class="icon-btn danger" title="Delete link"
+                onclick="openDeleteLink('${escHtml(section.id)}','${escHtml(link.id)}')">
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/>
+                </svg>
+              </button>
+            </div>
+          `;
+          linksList.appendChild(tile);
+        });
+
+        grid.appendChild(card);
+      });
+
+      // Show "no results" if search found nothing
+      noResults.style.display = (query && !anyVisible) ? 'block' : 'none';
+
+      // Re-attach drag-and-drop listeners after render
+      attachDragListeners();
+    }
+
+    /** Escape HTML special characters */
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    // ============================================================
+    // MODAL SYSTEM
+    // A single container that shows/hides modals
+    // ============================================================
+
+    function showModal(html) {
+      const container = document.getElementById('modal-container');
+      container.innerHTML = `<div class="modal-overlay" id="modal-overlay">${html}</div>`;
+      // Close on overlay click
+      container.querySelector('#modal-overlay').addEventListener('click', e => {
+        if (e.target === e.currentTarget) closeModal();
+      });
+      // Focus first input
+      const first = container.querySelector('input');
+      if (first) { first.focus(); first.select(); }
+    }
+
+    function closeModal() {
+      document.getElementById('modal-container').innerHTML = '';
+    }
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    // ============================================================
+    // SECTION CRUD
+    // ============================================================
+
+    /** Open "Add Section" modal */
+    function openAddSection() {
+      showModal(`
+        <div class="modal">
+          <h3>NEW SECTION</h3>
+          <div class="form-field">
+            <label>Section Title</label>
+            <input id="input-section-title" type="text" placeholder="e.g. Development" maxlength="60"
+              onkeydown="if(event.key==='Enter')confirmAddSection()" />
+          </div>
+          <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeModal()">CANCEL</button>
+            <button class="btn-confirm" onclick="confirmAddSection()">CREATE</button>
+          </div>
+        </div>
+      `);
+    }
+
+    function confirmAddSection() {
+      const title = document.getElementById('input-section-title').value.trim();
+      if (!title) return;
+      const data = loadData();
+      data.sections.push({ id: uid(), title, links: [] });
+      saveData(data);
+      closeModal();
+    }
+
+    /** Open "Rename Section" modal */
+    function openRenameSection(sectionId) {
+      const data = loadData();
+      const section = data.sections.find(s => s.id === sectionId);
+      if (!section) return;
+      showModal(`
+        <div class="modal">
+          <h3>RENAME SECTION</h3>
+          <div class="form-field">
+            <label>Section Title</label>
+            <input id="input-rename-section" type="text" value="${escHtml(section.title)}" maxlength="60"
+              onkeydown="if(event.key==='Enter')confirmRenameSection('${escHtml(sectionId)}')" />
+          </div>
+          <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeModal()">CANCEL</button>
+            <button class="btn-confirm" onclick="confirmRenameSection('${escHtml(sectionId)}')">RENAME</button>
+          </div>
+        </div>
+      `);
+    }
+
+    function confirmRenameSection(sectionId) {
+      const title = document.getElementById('input-rename-section').value.trim();
+      if (!title) return;
+      const data = loadData();
+      const section = data.sections.find(s => s.id === sectionId);
+      if (section) { section.title = title; saveData(data); }
+      closeModal();
+    }
+
+    /** Inline rename on double-click */
+    function startRenameSection(el, sectionId) {
+      const current = el.textContent;
+      el.innerHTML = '';
+      const input = document.createElement('input');
+      input.className = 'section-title-input';
+      input.value = current;
+      input.maxLength = 60;
+      el.appendChild(input);
+      input.focus();
+      input.select();
+
+      function commit() {
+        const newTitle = input.value.trim() || current;
+        const data = loadData();
+        const section = data.sections.find(s => s.id === sectionId);
+        if (section) { section.title = newTitle; saveData(data); }
+      }
+      input.addEventListener('blur', commit);
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); commit(); }
+        if (e.key === 'Escape') { e.preventDefault(); render(loadData()); }
+      });
+    }
+
+    /** Open "Delete Section" confirmation */
+    function openDeleteSection(sectionId) {
+      const data = loadData();
+      const section = data.sections.find(s => s.id === sectionId);
+      if (!section) return;
+      showModal(`
+        <div class="modal">
+          <h3>DELETE SECTION</h3>
+          <p class="confirm-text">This will also delete all links inside it. Continue?</p>
+          <p class="confirm-name">"${escHtml(section.title)}"</p>
+          <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeModal()">CANCEL</button>
+            <button class="btn-danger" onclick="confirmDeleteSection('${escHtml(sectionId)}')">DELETE</button>
+          </div>
+        </div>
+      `);
+    }
+
+    function confirmDeleteSection(sectionId) {
+      const data = loadData();
+      data.sections = data.sections.filter(s => s.id !== sectionId);
+      saveData(data);
+      closeModal();
+    }
+
+    // ============================================================
+    // LINK CRUD
+    // ============================================================
+
+    /** Open "Add Link" modal */
+    function openAddLink(sectionId) {
+      showModal(`
+        <div class="modal">
+          <h3>ADD LINK</h3>
+          <div class="form-field">
+            <label>Title</label>
+            <input id="input-link-title" type="text" placeholder="e.g. GitHub" maxlength="80" />
+          </div>
+          <div class="form-field">
+            <label>URL</label>
+            <input id="input-link-url" type="url" placeholder="https://..." maxlength="2048"
+              onkeydown="if(event.key==='Enter')confirmAddLink('${escHtml(sectionId)}')" />
+          </div>
+          <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeModal()">CANCEL</button>
+            <button class="btn-confirm" onclick="confirmAddLink('${escHtml(sectionId)}')">ADD</button>
+          </div>
+        </div>
+      `);
+    }
+
+    function confirmAddLink(sectionId) {
+      const title = document.getElementById('input-link-title').value.trim();
+      let url = document.getElementById('input-link-url').value.trim();
+      if (!title || !url) return;
+      // Auto-prepend https:// if no protocol
+      if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+
+      const data = loadData();
+      const section = data.sections.find(s => s.id === sectionId);
+      if (section) {
+        section.links.push({ id: uid(), title, url });
+        saveData(data);
+      }
+      closeModal();
+    }
+
+    /** Open "Edit Link" modal */
+    function openEditLink(sectionId, linkId) {
+      const data = loadData();
+      const section = data.sections.find(s => s.id === sectionId);
+      if (!section) return;
+      const link = section.links.find(l => l.id === linkId);
+      if (!link) return;
+      showModal(`
+        <div class="modal">
+          <h3>EDIT LINK</h3>
+          <div class="form-field">
+            <label>Title</label>
+            <input id="input-edit-title" type="text" value="${escHtml(link.title)}" maxlength="80" />
+          </div>
+          <div class="form-field">
+            <label>URL</label>
+            <input id="input-edit-url" type="url" value="${escHtml(link.url)}" maxlength="2048"
+              onkeydown="if(event.key==='Enter')confirmEditLink('${escHtml(sectionId)}','${escHtml(linkId)}')" />
+          </div>
+          <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeModal()">CANCEL</button>
+            <button class="btn-confirm" onclick="confirmEditLink('${escHtml(sectionId)}','${escHtml(linkId)}')">SAVE</button>
+          </div>
+        </div>
+      `);
+    }
+
+    function confirmEditLink(sectionId, linkId) {
+      const title = document.getElementById('input-edit-title').value.trim();
+      let url = document.getElementById('input-edit-url').value.trim();
+      if (!title || !url) return;
+      if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+
+      const data = loadData();
+      const section = data.sections.find(s => s.id === sectionId);
+      if (section) {
+        const link = section.links.find(l => l.id === linkId);
+        if (link) { link.title = title; link.url = url; saveData(data); }
+      }
+      closeModal();
+    }
+
+    /** Open "Delete Link" confirmation */
+    function openDeleteLink(sectionId, linkId) {
+      const data = loadData();
+      const section = data.sections.find(s => s.id === sectionId);
+      if (!section) return;
+      const link = section.links.find(l => l.id === linkId);
+      if (!link) return;
+      showModal(`
+        <div class="modal">
+          <h3>DELETE LINK</h3>
+          <p class="confirm-text">Remove this link?</p>
+          <p class="confirm-name">"${escHtml(link.title)}"</p>
+          <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeModal()">CANCEL</button>
+            <button class="btn-danger" onclick="confirmDeleteLink('${escHtml(sectionId)}','${escHtml(linkId)}')">DELETE</button>
+          </div>
+        </div>
+      `);
+    }
+
+    function confirmDeleteLink(sectionId, linkId) {
+      const data = loadData();
+      const section = data.sections.find(s => s.id === sectionId);
+      if (section) {
+        section.links = section.links.filter(l => l.id !== linkId);
+        saveData(data);
+      }
+      closeModal();
+    }
+
+    // ============================================================
+    // SEARCH
+    // ============================================================
+    document.getElementById('search').addEventListener('input', () => render(loadData()));
+
+    // ============================================================
+    // DRAG AND DROP
+    // HTML5 native drag-and-drop for sections and links
+    // ============================================================
+
+    let draggedSection = null;   // id of dragged section
+    let draggedLink   = null;    // { sectionId, linkId }
+
+    function attachDragListeners() {
+      // --- SECTION DRAG ---
+      document.querySelectorAll('.section-card').forEach(card => {
+        card.addEventListener('dragstart', e => {
+          // Only allow drag from the header area
+          if (!e.target.closest('.section-header')) {
+            e.preventDefault(); return;
+          }
+          draggedSection = card.dataset.sectionId;
+          draggedLink = null;
+          card.classList.add('dragging');
+          e.dataTransfer.effectAllowed = 'move';
+        });
+
+        card.addEventListener('dragend', () => {
+          draggedSection = null;
+          document.querySelectorAll('.section-card').forEach(c => {
+            c.classList.remove('dragging', 'drag-over');
+          });
+        });
+
+        card.addEventListener('dragover', e => {
+          if (!draggedSection || draggedSection === card.dataset.sectionId) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          document.querySelectorAll('.section-card').forEach(c => c.classList.remove('drag-over'));
+          card.classList.add('drag-over');
+        });
+
+        card.addEventListener('dragleave', e => {
+          if (!e.currentTarget.contains(e.relatedTarget)) {
+            card.classList.remove('drag-over');
+          }
+        });
+
+        card.addEventListener('drop', e => {
+          if (!draggedSection || draggedSection === card.dataset.sectionId) return;
+          e.preventDefault();
+          const data = loadData();
+          const fromIdx = data.sections.findIndex(s => s.id === draggedSection);
+          const toIdx   = data.sections.findIndex(s => s.id === card.dataset.sectionId);
+          if (fromIdx < 0 || toIdx < 0) return;
+          const [moved] = data.sections.splice(fromIdx, 1);
+          data.sections.splice(toIdx, 0, moved);
+          saveData(data);
+        });
+      });
+
+      // --- LINK DRAG ---
+      document.querySelectorAll('.link-tile').forEach(tile => {
+        tile.addEventListener('dragstart', e => {
+          e.stopPropagation(); // prevent section drag
+          draggedLink = { sectionId: tile.dataset.sectionId, linkId: tile.dataset.linkId };
+          draggedSection = null;
+          tile.classList.add('dragging');
+          e.dataTransfer.effectAllowed = 'move';
+        });
+
+        tile.addEventListener('dragend', () => {
+          draggedLink = null;
+          document.querySelectorAll('.link-tile').forEach(t => {
+            t.classList.remove('dragging', 'drag-over-top', 'drag-over-bottom');
+          });
+        });
+
+        tile.addEventListener('dragover', e => {
+          if (!draggedLink) return;
+          e.preventDefault();
+          e.stopPropagation();
+          e.dataTransfer.dropEffect = 'move';
+          document.querySelectorAll('.link-tile').forEach(t =>
+            t.classList.remove('drag-over-top', 'drag-over-bottom'));
+          const rect = tile.getBoundingClientRect();
+          const mid  = rect.top + rect.height / 2;
+          tile.classList.add(e.clientY < mid ? 'drag-over-top' : 'drag-over-bottom');
+        });
+
+        tile.addEventListener('dragleave', () => {
+          tile.classList.remove('drag-over-top', 'drag-over-bottom');
+        });
+
+        tile.addEventListener('drop', e => {
+          if (!draggedLink) return;
+          e.preventDefault();
+          e.stopPropagation();
+          const targetSectionId = tile.dataset.sectionId;
+          const targetLinkId    = tile.dataset.linkId;
+          if (draggedLink.linkId === targetLinkId) return;
+
+          const data = loadData();
+          const fromSection = data.sections.find(s => s.id === draggedLink.sectionId);
+          const toSection   = data.sections.find(s => s.id === targetSectionId);
+          if (!fromSection || !toSection) return;
+
+          const fromIdx = fromSection.links.findIndex(l => l.id === draggedLink.linkId);
+          const toIdx   = toSection.links.findIndex(l => l.id === targetLinkId);
+          if (fromIdx < 0 || toIdx < 0) return;
+
+          const [movedLink] = fromSection.links.splice(fromIdx, 1);
+
+          // Insert before or after based on drop position
+          const rect = tile.getBoundingClientRect();
+          const insertAfter = e.clientY >= rect.top + rect.height / 2;
+          const insertIdx = insertAfter ? toIdx + 1 : toIdx;
+
+          if (fromSection === toSection) {
+            // Same section — adjust index after removal
+            const adjustedIdx = insertIdx > fromIdx ? insertIdx - 1 : insertIdx;
+            fromSection.links.splice(adjustedIdx, 0, movedLink);
+          } else {
+            toSection.links.splice(insertIdx, 0, movedLink);
+          }
+          saveData(data);
+        });
+      });
+
+      // Allow dropping links onto an empty links-list
+      document.querySelectorAll('.links-list').forEach(list => {
+        list.addEventListener('dragover', e => {
+          if (!draggedLink) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+        });
+        list.addEventListener('drop', e => {
+          if (!draggedLink) return;
+          // Only handle if dropped directly on the list (not on a tile)
+          if (e.target !== list) return;
+          e.preventDefault();
+          const targetSectionId = list.dataset.sectionId;
+          const data = loadData();
+          const fromSection = data.sections.find(s => s.id === draggedLink.sectionId);
+          const toSection   = data.sections.find(s => s.id === targetSectionId);
+          if (!fromSection || !toSection) return;
+          const fromIdx = fromSection.links.findIndex(l => l.id === draggedLink.linkId);
+          if (fromIdx < 0) return;
+          const [movedLink] = fromSection.links.splice(fromIdx, 1);
+          toSection.links.push(movedLink);
+          saveData(data);
+        });
+      });
+    }
+
+    // ============================================================
+    // INIT
+    // ============================================================
+    render(loadData());
+
+    // ============================================================
+    // PWA INSTALL
+    // Captures the beforeinstallprompt event so we can trigger it
+    // on demand from our custom "Install App" button.
+    // ============================================================
+
+    let _pwaPrompt = null;
+
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      _pwaPrompt = e;
+      document.getElementById('btn-install').style.display = 'flex';
+    });
+
+    window.addEventListener('appinstalled', () => {
+      _pwaPrompt = null;
+      document.getElementById('btn-install').style.display = 'none';
+      showToast('Linkboard installed successfully.');
+    });
+
+    function pwaInstall() {
+      if (!_pwaPrompt) return;
+      _pwaPrompt.prompt();
+      _pwaPrompt.userChoice.then(result => {
+        if (result.outcome === 'accepted') {
+          showToast('Installing Linkboard...');
+        }
+        _pwaPrompt = null;
+        document.getElementById('btn-install').style.display = 'none';
+      });
+    }
+
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+    }
+
+    // ============================================================
+    // WEB PUSH — VAPID subscription flow
+    // 1. Fetch the VAPID public key from /api/push/send
+    // 2. Request notification permission
+    // 3. Subscribe via pushManager.subscribe()
+    // 4. POST the subscription to /api/push/subscribe
+    // The backend stores subscriptions and cron triggers delivery later.
+    // ============================================================
+
+    let _pushSubscription = null; // current PushSubscription object
+    let _reminders = [];
+    let _remindersError = null;
+
+    /** Convert a base64url VAPID public key to a Uint8Array */
+    function urlBase64ToUint8Array(base64String) {
+      const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+      const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+      const raw = atob(base64);
+      return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+    }
+
+    /** Fetch VAPID public key from server */
+    async function getVapidPublicKey() {
+      try {
+        const res = await fetch('/api/push/send');
+        if (!res.ok) return null;
+        const { publicKey } = await res.json();
+        return publicKey || null;
+      } catch {
+        return null;
+      }
+    }
+
+    /** Subscribe to Web Push and register with server */
+    async function subscribeToPush() {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        showToast('Web Push is not supported in this browser.');
+        return false;
+      }
+
+      // Request notification permission first
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        showToast('Notification permission denied.');
+        updateNotifBtn();
+        return false;
+      }
+
+      const vapidPublicKey = await getVapidPublicKey();
+      if (!vapidPublicKey) {
+        // Reminders require server-side Web Push configuration.
+        showToast('Push notifications are not configured on the server.');
+        updateNotifBtn();
+        return false;
+      }
+
+      try {
+        const swReg = await navigator.serviceWorker.ready;
+        const subscription = await swReg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
+        });
+
+        // Register subscription with our Next.js API
+        const subRes = await fetch('/api/push/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subscription: subscription.toJSON() })
+        });
+        const subData = await subRes.json();
+        console.log('[push] subscription registered:', subData);
+
+        _pushSubscription = subscription;
+        showToast('Web Push notifications enabled.');
+        updateNotifBtn();
+        return true;
+      } catch (err) {
+        console.error('[push] subscribe failed:', err);
+        showToast('Could not subscribe to push notifications.');
+        return false;
+      }
+    }
+
+    /** Restore existing push subscription on page load and re-register with server. */
+    async function restorePushSubscription() {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+      try {
+        const swReg = await navigator.serviceWorker.ready;
+        const existing = await swReg.pushManager.getSubscription();
+        if (existing) {
+          _pushSubscription = existing;
+          // Re-register on load so the stored keys stay in sync.
+          const res = await fetch('/api/push/subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ subscription: existing.toJSON() })
+          });
+          const data = await res.json();
+          console.log('[push] subscription re-registered on load:', data);
+        }
+      } catch (err) {
+        console.log('[push] restorePushSubscription error:', err);
+      }
+      updateNotifBtn();
+    }
+
+    function requestNotifPermission() {
+      subscribeToPush();
+    }
+
+    function updateNotifBtn() {
+      const btn = document.getElementById('btn-notif');
+      const hasPush = !!_pushSubscription;
+      btn.classList.toggle('active', hasPush);
+      btn.title = hasPush ? 'Web Push enabled' : 'Enable push notifications';
+
+      // Update statusbar indicator
+      const statPush = document.getElementById('stat-push');
+      if (statPush) {
+        statPush.textContent = hasPush ? 'PUSH: ACTIVE' : 'PUSH: INACTIVE';
+      }
+    }
+
+    // Restore subscription state on load
+    restorePushSubscription();
+
+    // ============================================================
+    // REMINDER SYSTEM
+    // Reminders are stored in Supabase and processed by backend cron.
+    // ============================================================
+
+    async function apiJson(url, options = {}) {
+      const response = await fetch(url, {
+        cache: 'no-store',
+        ...options
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const err = new Error(data.error || 'Request failed');
+        err.status = response.status;
+        throw err;
+      }
+      return data;
+    }
+
+    async function loadReminders({ silent = false } = {}) {
+      try {
+        const data = await apiJson('/api/tasks');
+        _reminders = Array.isArray(data.tasks) ? data.tasks : [];
+        _remindersError = null;
+        renderReminders();
+      } catch (err) {
+        _reminders = [];
+        _remindersError = err && err.status === 401
+          ? 'SIGN IN REQUIRED'
+          : 'COULD NOT LOAD REMINDERS';
+        renderReminders();
+
+        if (!silent) {
+          showToast(
+            err && err.status === 401
+              ? 'Sign in required for reminders.'
+              : 'Could not load reminders.'
+          );
+        }
+      }
+    }
+
+    async function addReminder() {
+      const title = document.getElementById('rp-title').value.trim();
+      const desc  = document.getElementById('rp-desc').value.trim();
+      const time  = document.getElementById('rp-time').value;
+      if (!title || !time) {
+        showToast('Title and date/time are required.');
+        return;
+      }
+
+      const dueDate = new Date(time);
+      if (Number.isNaN(dueDate.getTime())) {
+        showToast('Invalid reminder date/time.');
+        return;
+      }
+
+      try {
+        await apiJson('/api/tasks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title,
+            description: desc,
+            dueDate: dueDate.toISOString()
+          })
+        });
+
+        document.getElementById('rp-title').value = '';
+        document.getElementById('rp-desc').value  = '';
+        document.getElementById('rp-time').value  = '';
+        await loadReminders({ silent: true });
+        showToast('Task saved.');
+      } catch (err) {
+        showToast(
+          err && err.status === 401
+            ? 'Sign in required for reminders.'
+            : 'Could not save task.'
+        );
+      }
+    }
+
+    async function deleteReminder(id, successMessage = '') {
+      try {
+        await apiJson(`/api/tasks/${encodeURIComponent(id)}`, {
+          method: 'DELETE'
+        });
+        await loadReminders({ silent: true });
+        if (successMessage) {
+          showToast(successMessage);
+        }
+      } catch (err) {
+        showToast(
+          err && err.status === 401
+            ? 'Sign in required for reminders.'
+            : 'Could not delete task.'
+        );
+      }
+    }
+
+    async function completeReminder(id) {
+      await deleteReminder(id, 'Task completed.');
+    }
+
+    function renderReminders() {
+      const list = _reminders;
+      const container = document.getElementById('reminders-list');
+      const badge = document.getElementById('reminder-badge');
+
+      const pending = list.filter(r => !r.notified).length;
+      if (pending > 0) {
+        badge.textContent = pending;
+        badge.style.display = 'inline-flex';
+      } else {
+        badge.style.display = 'none';
+      }
+
+      if (_remindersError) {
+        container.innerHTML = `<div class="rp-empty">${_remindersError}</div>`;
+        return;
+      }
+
+      if (list.length === 0) {
+        container.innerHTML = '<div class="rp-empty">NO TASKS</div>';
+        return;
+      }
+
+      const sorted = [...list].sort((a, b) => {
+        if (a.notified !== b.notified) return a.notified ? 1 : -1;
+        return new Date(a.due_date) - new Date(b.due_date);
+      });
+
+      container.innerHTML = `
+        <div class="rp-section-title">TASKS</div>
+        ${sorted.map(r => {
+        const dt = new Date(r.due_date);
+        const dateStr = dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        const timeStr = dt.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+        return `
+          <div class="reminder-item${r.notified ? ' fired' : ''}">
+            <div class="reminder-item-row">
+              <div class="reminder-main">
+                <input
+                  class="reminder-check"
+                  type="checkbox"
+                  title="Mark task as done"
+                  aria-label="Mark task as done"
+                  onchange="completeReminder('${escHtml(r.id)}')"
+                />
+                <span class="reminder-title">${escHtml(r.title)}</span>
+              </div>
+              <button class="icon-btn danger" title="Delete reminder"
+                onclick="deleteReminder('${escHtml(r.id)}')">
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/>
+                </svg>
+              </button>
+            </div>
+            ${r.description ? `<div class="reminder-desc">${escHtml(r.description)}</div>` : ''}
+            <div class="reminder-item-row">
+              <span class="reminder-time">${dateStr} ${timeStr}</span>
+              ${r.notified ? '<span class="reminder-fired-label">FIRED</span>' : ''}
+            </div>
+          </div>
+        `;
+      }).join('')}
+      `;
+    }
+
+    // ============================================================
+    // REMINDERS PANEL TOGGLE
+    // ============================================================
+
+    function toggleRemindersPanel() {
+      const panel = document.getElementById('reminders-panel');
+      const isOpen = panel.classList.toggle('open');
+      document.body.classList.toggle('panel-open', isOpen);
+      document.getElementById('btn-reminders').classList.toggle('active', isOpen);
+      if (isOpen) loadReminders({ silent: true });
+    }
+
+    // ============================================================
+    // TOAST
+    // Lightweight in-page feedback message.
+    // ============================================================
+
+    let _toastTimer = null;
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      clearTimeout(_toastTimer);
+      _toastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // ============================================================
+    // INIT REMINDERS ON LOAD
+    // ============================================================
+    renderReminders();
+    loadReminders({ silent: true });
+  </script>
+</body>
+</html>
