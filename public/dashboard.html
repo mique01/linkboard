@@ -637,6 +637,11 @@
       color: var(--text-dim);
       margin-bottom: 6px;
     }
+    .rp-section-block {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
 
     /* Individual reminder item */
     .reminder-item {
@@ -709,6 +714,16 @@
       flex-direction: column;
       gap: 8px;
       flex-shrink: 0;
+    }
+    .rp-add-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .rp-add-group + .rp-add-group {
+      border-top: 1px solid var(--border);
+      padding-top: 10px;
+      margin-top: 2px;
     }
     .rp-add-form .rp-form-title {
       font-family: var(--font-mono);
@@ -896,11 +911,19 @@
       <div class="rp-empty">NO REMINDERS</div>
     </div>
     <div class="rp-add-form">
-      <div class="rp-form-title">NEW TASK</div>
-      <input class="rp-input" id="rp-title" type="text" placeholder="Title" maxlength="80" />
-      <input class="rp-input" id="rp-desc"  type="text" placeholder="Description (optional)" maxlength="200" />
-      <input class="rp-input" id="rp-time"  type="datetime-local" />
-      <button class="rp-add-btn" onclick="addReminder()">+ ADD TASK</button>
+      <div class="rp-add-group">
+        <div class="rp-form-title">NEW TASK</div>
+        <input class="rp-input" id="task-title" type="text" placeholder="Title" maxlength="80" />
+        <input class="rp-input" id="task-desc"  type="text" placeholder="Description (optional)" maxlength="200" />
+        <button class="rp-add-btn" onclick="addTask()">+ ADD TASK</button>
+      </div>
+      <div class="rp-add-group">
+        <div class="rp-form-title">NEW REMINDER</div>
+        <input class="rp-input" id="rp-title" type="text" placeholder="Title" maxlength="80" />
+        <input class="rp-input" id="rp-desc"  type="text" placeholder="Description (optional)" maxlength="200" />
+        <input class="rp-input" id="rp-time"  type="datetime-local" />
+        <button class="rp-add-btn" onclick="addReminder()">+ ADD REMINDER</button>
+      </div>
     </div>
   </aside>
 
@@ -1551,6 +1574,8 @@
     // ============================================================
 
     let _pushSubscription = null; // current PushSubscription object
+    let _todos = [];
+    let _todosError = null;
     let _reminders = [];
     let _remindersError = null;
 
@@ -1687,25 +1712,70 @@
     }
 
     async function loadReminders({ silent = false } = {}) {
-      try {
-        const data = await apiJson('/api/tasks');
-        _reminders = Array.isArray(data.tasks) ? data.tasks : [];
+      const [todosResult, remindersResult] = await Promise.allSettled([
+        apiJson('/api/todos'),
+        apiJson('/api/tasks')
+      ]);
+
+      if (todosResult.status === 'fulfilled') {
+        _todos = Array.isArray(todosResult.value.todos) ? todosResult.value.todos : [];
+        _todosError = null;
+      } else {
+        const err = todosResult.reason;
+        _todos = [];
+        _todosError = err && err.status === 401 ? 'SIGN IN REQUIRED' : 'COULD NOT LOAD TASKS';
+      }
+
+      if (remindersResult.status === 'fulfilled') {
+        _reminders = Array.isArray(remindersResult.value.tasks) ? remindersResult.value.tasks : [];
         _remindersError = null;
-        renderReminders();
-      } catch (err) {
+      } else {
+        const err = remindersResult.reason;
         _reminders = [];
         _remindersError = err && err.status === 401
           ? 'SIGN IN REQUIRED'
           : 'COULD NOT LOAD REMINDERS';
-        renderReminders();
+      }
 
-        if (!silent) {
-          showToast(
-            err && err.status === 401
-              ? 'Sign in required for reminders.'
-              : 'Could not load reminders.'
-          );
-        }
+      renderReminders();
+
+      if (!silent && (_todosError || _remindersError)) {
+        showToast(
+          (_todosError === 'SIGN IN REQUIRED' || _remindersError === 'SIGN IN REQUIRED')
+            ? 'Sign in required for tasks and reminders.'
+            : 'Could not load the reminders panel.'
+        );
+      }
+    }
+
+    async function addTask() {
+      const title = document.getElementById('task-title').value.trim();
+      const desc  = document.getElementById('task-desc').value.trim();
+      if (!title) {
+        showToast('Task title is required.');
+        return;
+      }
+
+      try {
+        await apiJson('/api/todos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title,
+            description: desc
+          })
+        });
+
+        document.getElementById('task-title').value = '';
+        document.getElementById('task-desc').value  = '';
+        await loadReminders({ silent: true });
+        showToast('Task saved.');
+      } catch (err) {
+        showToast(
+          err && err.status === 401
+            ? 'Sign in required for tasks.'
+            : 'Could not save task.'
+        );
       }
     }
 
@@ -1739,12 +1809,30 @@
         document.getElementById('rp-desc').value  = '';
         document.getElementById('rp-time').value  = '';
         await loadReminders({ silent: true });
-        showToast('Task saved.');
+        showToast('Reminder saved.');
       } catch (err) {
         showToast(
           err && err.status === 401
             ? 'Sign in required for reminders.'
-            : 'Could not save task.'
+            : 'Could not save reminder.'
+        );
+      }
+    }
+
+    async function deleteTask(id, successMessage = '') {
+      try {
+        await apiJson(`/api/todos/${encodeURIComponent(id)}`, {
+          method: 'DELETE'
+        });
+        await loadReminders({ silent: true });
+        if (successMessage) {
+          showToast(successMessage);
+        }
+      } catch (err) {
+        showToast(
+          err && err.status === 401
+            ? 'Sign in required for tasks.'
+            : 'Could not delete task.'
         );
       }
     }
@@ -1762,21 +1850,22 @@
         showToast(
           err && err.status === 401
             ? 'Sign in required for reminders.'
-            : 'Could not delete task.'
+            : 'Could not delete reminder.'
         );
       }
     }
 
-    async function completeReminder(id) {
-      await deleteReminder(id, 'Task completed.');
+    async function completeTask(id) {
+      await deleteTask(id, 'Task completed.');
     }
 
     function renderReminders() {
-      const list = _reminders;
+      const todos = _todos;
+      const reminders = _reminders;
       const container = document.getElementById('reminders-list');
       const badge = document.getElementById('reminder-badge');
 
-      const pending = list.filter(r => !r.notified).length;
+      const pending = todos.length + reminders.filter(r => !r.notified).length;
       if (pending > 0) {
         badge.textContent = pending;
         badge.style.display = 'inline-flex';
@@ -1784,55 +1873,85 @@
         badge.style.display = 'none';
       }
 
-      if (_remindersError) {
-        container.innerHTML = `<div class="rp-empty">${_remindersError}</div>`;
+      if (_todosError && _remindersError) {
+        container.innerHTML = `<div class="rp-empty">${_todosError}</div>`;
         return;
       }
 
-      if (list.length === 0) {
-        container.innerHTML = '<div class="rp-empty">NO TASKS</div>';
-        return;
-      }
-
-      const sorted = [...list].sort((a, b) => {
+      const sortedReminders = [...reminders].sort((a, b) => {
         if (a.notified !== b.notified) return a.notified ? 1 : -1;
         return new Date(a.due_date) - new Date(b.due_date);
       });
 
+      const tasksMarkup = _todosError
+        ? `<div class="rp-section-block"><div class="rp-section-title">TASKS</div><div class="rp-empty">${_todosError}</div></div>`
+        : todos.length === 0
+          ? `<div class="rp-section-block"><div class="rp-section-title">TASKS</div><div class="rp-empty">NO TASKS</div></div>`
+          : `
+            <div class="rp-section-block">
+              <div class="rp-section-title">TASKS</div>
+              ${todos.map(t => `
+                <div class="reminder-item">
+                  <div class="reminder-item-row">
+                    <div class="reminder-main">
+                      <input
+                        class="reminder-check"
+                        type="checkbox"
+                        title="Mark task as done"
+                        aria-label="Mark task as done"
+                        onchange="completeTask('${escHtml(t.id)}')"
+                      />
+                      <span class="reminder-title">${escHtml(t.title)}</span>
+                    </div>
+                    <button class="icon-btn danger" title="Delete task"
+                      onclick="deleteTask('${escHtml(t.id)}')">
+                      <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/>
+                      </svg>
+                    </button>
+                  </div>
+                  ${t.description ? `<div class="reminder-desc">${escHtml(t.description)}</div>` : ''}
+                </div>
+              `).join('')}
+            </div>
+          `;
+
+      const remindersMarkup = _remindersError
+        ? `<div class="rp-section-block"><div class="rp-section-title">REMINDERS</div><div class="rp-empty">${_remindersError}</div></div>`
+        : sortedReminders.length === 0
+          ? `<div class="rp-section-block"><div class="rp-section-title">REMINDERS</div><div class="rp-empty">NO REMINDERS</div></div>`
+          : `
+            <div class="rp-section-block">
+              <div class="rp-section-title">REMINDERS</div>
+              ${sortedReminders.map(r => {
+                const dt = new Date(r.due_date);
+                const dateStr = dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                const timeStr = dt.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+                return `
+                  <div class="reminder-item${r.notified ? ' fired' : ''}">
+                    <div class="reminder-item-row">
+                      <span class="reminder-title">${escHtml(r.title)}</span>
+                      <button class="icon-btn danger" title="Delete reminder"
+                        onclick="deleteReminder('${escHtml(r.id)}')">
+                        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+                          <line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/>
+                        </svg>
+                      </button>
+                    </div>
+                    ${r.description ? `<div class="reminder-desc">${escHtml(r.description)}</div>` : ''}
+                    <div class="reminder-item-row">
+                      <span class="reminder-time">${dateStr} ${timeStr}</span>
+                      ${r.notified ? '<span class="reminder-fired-label">FIRED</span>' : ''}
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          `;
+
       container.innerHTML = `
-        <div class="rp-section-title">TASKS</div>
-        ${sorted.map(r => {
-        const dt = new Date(r.due_date);
-        const dateStr = dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-        const timeStr = dt.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-        return `
-          <div class="reminder-item${r.notified ? ' fired' : ''}">
-            <div class="reminder-item-row">
-              <div class="reminder-main">
-                <input
-                  class="reminder-check"
-                  type="checkbox"
-                  title="Mark task as done"
-                  aria-label="Mark task as done"
-                  onchange="completeReminder('${escHtml(r.id)}')"
-                />
-                <span class="reminder-title">${escHtml(r.title)}</span>
-              </div>
-              <button class="icon-btn danger" title="Delete reminder"
-                onclick="deleteReminder('${escHtml(r.id)}')">
-                <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
-                  <line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/>
-                </svg>
-              </button>
-            </div>
-            ${r.description ? `<div class="reminder-desc">${escHtml(r.description)}</div>` : ''}
-            <div class="reminder-item-row">
-              <span class="reminder-time">${dateStr} ${timeStr}</span>
-              ${r.notified ? '<span class="reminder-fired-label">FIRED</span>' : ''}
-            </div>
-          </div>
-        `;
-      }).join('')}
+        ${tasksMarkup}
+        ${remindersMarkup}
       `;
     }
 

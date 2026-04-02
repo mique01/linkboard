@@ -19,6 +19,14 @@ export type PushSubscriptionRecord = {
   created_at: string;
 };
 
+export type TodoRecord = {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string | null;
+  created_at: string;
+};
+
 function buildQuery(params: Record<string, string | number | boolean | undefined>) {
   const searchParams = new URLSearchParams();
 
@@ -73,6 +81,56 @@ export async function deleteTaskForUser(taskId: string, userId: string) {
     `/rest/v1/tasks${buildQuery({
       select: 'id',
       id: `eq.${taskId}`,
+      user_id: `eq.${userId}`,
+    })}`,
+    {
+      method: 'DELETE',
+      headers: {
+        Prefer: 'return=representation',
+      },
+    }
+  );
+
+  return rows.length > 0;
+}
+
+export async function listTodosForUser(userId: string) {
+  return supabaseAdminRequest<TodoRecord[]>(
+    `/rest/v1/todos${buildQuery({
+      select: 'id,user_id,title,description,created_at',
+      user_id: `eq.${userId}`,
+      order: 'created_at.desc',
+    })}`
+  );
+}
+
+export async function createTodoForUser(input: {
+  userId: string;
+  title: string;
+  description?: string | null;
+}) {
+  const rows = await supabaseAdminRequest<TodoRecord[]>('/rest/v1/todos', {
+    method: 'POST',
+    headers: {
+      Prefer: 'return=representation',
+    },
+    body: JSON.stringify([
+      {
+        user_id: input.userId,
+        title: input.title,
+        description: input.description ?? null,
+      },
+    ]),
+  });
+
+  return rows[0] ?? null;
+}
+
+export async function deleteTodoForUser(todoId: string, userId: string) {
+  const rows = await supabaseAdminRequest<TodoRecord[]>(
+    `/rest/v1/todos${buildQuery({
+      select: 'id',
+      id: `eq.${todoId}`,
       user_id: `eq.${userId}`,
     })}`,
     {
