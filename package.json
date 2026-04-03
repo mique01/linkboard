@@ -2,15 +2,17 @@
   "name": "my-project",
   "version": "0.1.0",
   "private": true,
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "desktop": "electron .",
+    "desktop:package": "electron-builder --win portable"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
-    "@vercel/analytics": "1.6.1",
     "@radix-ui/react-accordion": "1.2.12",
     "@radix-ui/react-alert-dialog": "1.1.15",
     "@radix-ui/react-aspect-ratio": "1.1.8",
@@ -38,6 +40,7 @@
     "@radix-ui/react-toggle": "1.1.10",
     "@radix-ui/react-toggle-group": "1.1.11",
     "@radix-ui/react-tooltip": "1.2.8",
+    "@vercel/analytics": "1.6.1",
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -66,10 +69,30 @@
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@types/web-push": "^3.6.4",
+    "electron": "^37.10.3",
+    "electron-builder": "^26.8.1",
     "postcss": "^8.5",
     "shadcn": "^4.0.0",
     "tailwindcss": "^4.2.0",
     "tw-animate-css": "1.3.3",
     "typescript": "5.7.3"
+  },
+  "build": {
+    "appId": "com.linkboard.desktop",
+    "productName": "Linkboard",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**/*",
+      "public/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "icon": "public/icon.png"
+    }
   }
 }
