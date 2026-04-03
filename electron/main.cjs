@@ -5,6 +5,7 @@ const { app, BrowserWindow, Menu, Tray, nativeImage, shell, session } = require(
 const APP_URL =
   process.env.LINKBOARD_APP_URL ||
   'https://linkboard-m5wi.vercel.app/dashboard.html?v=desktop';
+const SESSION_PARTITION = 'persist:linkboard-desktop';
 
 let mainWindow = null;
 let tray = null;
@@ -22,28 +23,30 @@ function configureAppDataPaths() {
 }
 
 function configurePermissions() {
+  const desktopSession = session.fromPartition(SESSION_PARTITION);
   const isTrustedOrigin = (origin) =>
     origin === 'https://linkboard-m5wi.vercel.app' ||
     origin === 'https://linkboard-m5wi.vercel.app:443';
 
-  session.defaultSession.setPermissionCheckHandler((_wc, permission, requestingOrigin) => {
-    if (permission === 'notifications' || permission === 'persistent-storage') {
-      return isTrustedOrigin(requestingOrigin);
-    }
-
-    return false;
-  });
-
-  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback, details) => {
+  const allowPermission = (_wc, permission, requestingOrigin, details, callback) => {
     if (
       (permission === 'notifications' || permission === 'persistent-storage') &&
-      isTrustedOrigin(details.requestingOrigin)
+      isTrustedOrigin((details && details.requestingOrigin) || requestingOrigin)
     ) {
-      callback(true);
-      return;
+      if (typeof callback === 'function') callback(true);
+      return true;
     }
 
-    callback(false);
+    if (typeof callback === 'function') callback(false);
+    return false;
+  };
+
+  desktopSession.setPermissionCheckHandler((wc, permission, requestingOrigin, details) =>
+    allowPermission(wc, permission, requestingOrigin, details)
+  );
+
+  desktopSession.setPermissionRequestHandler((wc, permission, callback, details) => {
+    allowPermission(wc, permission, '', details, callback);
   });
 }
 
@@ -111,6 +114,7 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      partition: SESSION_PARTITION,
     },
   });
 
