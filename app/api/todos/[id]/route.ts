@@ -31,6 +31,9 @@ export async function DELETE(req: NextRequest, context: RouteContext) {
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error('[todos/delete]', error);
-    return NextResponse.json({ error: 'Internal error' }, { status: 500 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Internal error' },
+      { status: 500 }
+    );
   }
 }

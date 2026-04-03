@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LINKBOARD</title>
-  <link rel="manifest" href="/manifest.json" />
-  <meta name="theme-color" content="#111214" />
+  <link rel="manifest" href="/manifest.json?v=20260403" />
+  <meta name="theme-color" content="#1b1f24" />
   <link rel="apple-touch-icon" href="/icon.png" />
   <style>
     /* ============================================================
@@ -14,11 +14,11 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:         #171a1f;
-      --surface:    #20242a;
-      --surface2:   #282d35;
-      --border:     #373e49;
-      --border-hi:  #4d5663;
+      --bg:         #1b1f24;
+      --surface:    #232932;
+      --surface2:   #2d343f;
+      --border:     #434d5b;
+      --border-hi:  #5b6778;
       --text:       #eef2f7;
       --text-dim:   #c8d0db;
       --text-muted: #8b93a3;
@@ -59,7 +59,7 @@
       align-items: center;
       gap: 16px;
       padding: 0 20px;
-      height: 48px;
+      height: 56px;
     }
 
     #topbar .logo {
@@ -74,27 +74,33 @@
     .brand-nav {
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 10px;
     }
     .brand-link {
-      background: none;
-      border: none;
-      padding: 0;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px 8px 0 0;
+      border-bottom-color: transparent;
+      padding: 12px 22px 11px;
       display: inline-flex;
       align-items: center;
       gap: 6px;
       font-family: var(--font-mono);
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 700;
       letter-spacing: 0.16em;
-      color: rgba(200,168,75,.72);
+      color: rgba(200,168,75,.92);
       cursor: pointer;
       text-transform: uppercase;
-      transition: color .15s;
+      transition: color .15s, border-color .15s, background .15s;
+      position: relative;
+      top: 7px;
     }
     .brand-link:hover,
     .brand-link.active {
       color: var(--accent);
+      border-color: var(--border-hi);
+      background: var(--bg);
     }
 
     #topbar .divider {
@@ -163,6 +169,54 @@
     ============================================================ */
     #main {
       padding: 24px 20px 60px;
+    }
+    #planner-view {
+      display: none;
+    }
+    .planner-shell {
+      display: flex;
+      justify-content: center;
+      padding-top: 12px;
+    }
+    .planner-card {
+      width: min(860px, 100%);
+      min-height: 420px;
+    }
+    .planner-card .section-header {
+      cursor: default;
+    }
+    .planner-head-copy {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+      flex: 1;
+    }
+    .planner-subtitle {
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.45;
+    }
+    .planner-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .planner-empty {
+      min-height: 240px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      text-align: center;
+      color: var(--text-dim);
+    }
+    .planner-empty strong {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: .12em;
+      color: var(--text);
     }
 
     /* ============================================================
@@ -404,7 +458,7 @@
     .modal-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,.7);
+      background: rgba(12,14,18,.72);
       z-index: 200;
       display: flex;
       align-items: center;
@@ -452,6 +506,42 @@
       flex-direction: column;
       gap: 8px;
       background: var(--surface);
+    }
+    .panel-window-meta {
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.55;
+    }
+    .panel-window-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .window-create-btn {
+      background: rgba(200,168,75,.1);
+      border: 1px solid var(--accent-dim);
+      border-radius: var(--radius);
+      color: var(--accent);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: .08em;
+      padding: 7px 10px;
+      cursor: pointer;
+      transition: background .12s;
+    }
+    .window-create-btn:hover {
+      background: rgba(200,168,75,.2);
+    }
+    .window-create-btn.secondary {
+      background: transparent;
+      border-color: var(--border-hi);
+      color: var(--text-dim);
+    }
+    .window-create-btn.secondary:hover {
+      background: var(--surface2);
+      border-color: var(--text-dim);
+      color: var(--text);
     }
     @keyframes slideUp { from { transform:translateY(8px); opacity:0; } to { transform:translateY(0); opacity:1; } }
 
@@ -803,6 +893,11 @@
       transition: background .12s;
     }
     .rp-add-btn:hover { background: rgba(200,168,75,.2); }
+    .rp-form-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
 
     /* ============================================================
        TOAST NOTIFICATION (in-page fallback)
@@ -852,7 +947,7 @@
 
   <!-- ===================== TOPBAR ===================== -->
   <header id="topbar">
-    <button class="logo brand-link active" onclick="closeModal()">LINKBOARD</button>
+    <button id="btn-linkboard" class="logo brand-link" onclick="openLinkboardHome()">LINKBOARD</button>
     <div class="brand-nav">
       <button id="btn-reminders" class="brand-link" onclick="openRemindersWindow()" title="Open reminders">REMINDERS <span id="reminder-badge" class="reminder-badge" style="display:none">0</span></button>
       <button id="btn-tasks" class="brand-link" onclick="openTasksWindow()" title="Open tasks">TASKS</button>
@@ -915,6 +1010,9 @@
 
     <!-- Sections grid -->
     <div id="sections-grid"></div>
+
+    <!-- Planner workspace -->
+    <div id="planner-view"></div>
   </main>
 
   <!-- ===================== STATUS BAR ===================== -->
@@ -986,6 +1084,7 @@
     // ============================================================
     function render(data) {
       const grid = document.getElementById('sections-grid');
+      const plannerView = document.getElementById('planner-view');
       const emptyState = document.getElementById('empty-state');
       const noResults = document.getElementById('no-results');
       const query = document.getElementById('search').value.trim().toLowerCase();
@@ -994,6 +1093,29 @@
       const totalLinks = data.sections.reduce((a, s) => a + s.links.length, 0);
       document.getElementById('stat-sections').textContent = data.sections.length;
       document.getElementById('stat-links').textContent = totalLinks;
+      updateWorkspaceUI();
+
+      if (_activeWorkspace === 'tasks') {
+        renderPlannerView('tasks', query);
+        emptyState.style.display = 'none';
+        noResults.style.display = 'none';
+        grid.style.display = 'none';
+        plannerView.style.display = 'block';
+        return;
+      }
+
+      if (_activeWorkspace === 'reminders') {
+        renderPlannerView('reminders', query);
+        emptyState.style.display = 'none';
+        noResults.style.display = 'none';
+        grid.style.display = 'none';
+        plannerView.style.display = 'block';
+        return;
+      }
+
+      plannerView.innerHTML = '';
+      plannerView.style.display = 'none';
+      grid.style.display = 'grid';
 
       // Show/hide empty state
       if (data.sections.length === 0) {
@@ -1125,11 +1247,7 @@
     // A single container that shows/hides modals
     // ============================================================
 
-    function showModal(html, options = {}) {
-      if (!options.preserveActiveToolWindow) {
-        _activeToolWindow = null;
-        updateToolWindowButtons();
-      }
+    function showModal(html) {
       const container = document.getElementById('modal-container');
       container.innerHTML = `<div class="modal-overlay" id="modal-overlay">${html}</div>`;
       // Close on overlay click
@@ -1142,8 +1260,6 @@
     }
 
     function closeModal() {
-      _activeToolWindow = null;
-      updateToolWindowButtons();
       document.getElementById('modal-container').innerHTML = '';
     }
 
@@ -1571,7 +1687,9 @@
 
     // Register service worker
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+      navigator.serviceWorker.register('/service-worker.js', { updateViaCache: 'none' })
+        .then(registration => registration.update().catch(() => {}))
+        .catch(() => {});
     }
 
     // ============================================================
@@ -1584,7 +1702,8 @@
     // ============================================================
 
     let _pushSubscription = null; // current PushSubscription object
-    let _activeToolWindow = null;
+    let _activeWorkspace = 'linkboard';
+    let _composerWindow = null;
     let _deviceId = null;
     let _todos = [];
     let _todosError = null;
@@ -1599,6 +1718,7 @@
           _deviceId = existing;
           return _deviceId;
         }
+
         const created = (crypto && crypto.randomUUID)
           ? crypto.randomUUID()
           : `lb_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
@@ -1609,6 +1729,26 @@
         _deviceId = `lb_fallback_${Date.now().toString(36)}`;
         return _deviceId;
       }
+    }
+
+    function normalizeApiError(error, fallback) {
+      const message =
+        error && typeof error.message === 'string' ? error.message.trim() : '';
+
+      if (!message) {
+        return fallback;
+      }
+
+      if (
+        message.includes('device_id') ||
+        message.includes('null value in column "user_id"') ||
+        message.includes('Could not find the') ||
+        message.includes('column')
+      ) {
+        return 'Database schema outdated. Run the local device mode SQL in Supabase.';
+      }
+
+      return message;
     }
 
     /** Convert a base64url VAPID public key to a Uint8Array */
@@ -1728,10 +1868,46 @@
     }
 
     function updateToolWindowButtons() {
+      const homeBtn = document.getElementById('btn-linkboard');
       const tasksBtn = document.getElementById('btn-tasks');
       const remindersBtn = document.getElementById('btn-reminders');
-      if (tasksBtn) tasksBtn.classList.toggle('active', _activeToolWindow === 'tasks');
-      if (remindersBtn) remindersBtn.classList.toggle('active', _activeToolWindow === 'reminders');
+      if (homeBtn) homeBtn.classList.toggle('active', _activeWorkspace === 'linkboard');
+      if (tasksBtn) tasksBtn.classList.toggle('active', _activeWorkspace === 'tasks');
+      if (remindersBtn) remindersBtn.classList.toggle('active', _activeWorkspace === 'reminders');
+    }
+
+    function updateWorkspaceUI() {
+      updateToolWindowButtons();
+
+      const search = document.getElementById('search');
+      const addSectionBtn = document.getElementById('btn-add-section');
+      const placeholders = {
+        linkboard: 'search links...',
+        reminders: 'search reminders...',
+        tasks: 'search tasks...'
+      };
+
+      if (search) {
+        search.placeholder = placeholders[_activeWorkspace] || placeholders.linkboard;
+      }
+
+      if (addSectionBtn) {
+        addSectionBtn.style.display = _activeWorkspace === 'linkboard' ? 'flex' : 'none';
+      }
+    }
+
+    function openLinkboardHome() {
+      _activeWorkspace = 'linkboard';
+      _composerWindow = null;
+      updateWorkspaceUI();
+      render(loadData());
+    }
+
+    function setWorkspace(view) {
+      _activeWorkspace = view;
+      _composerWindow = null;
+      updateWorkspaceUI();
+      render(loadData());
     }
 
     // Restore subscription state on load
@@ -1770,27 +1946,23 @@
         _todos = Array.isArray(todosResult.value.todos) ? todosResult.value.todos : [];
         _todosError = null;
       } else {
-        const err = todosResult.reason;
         _todos = [];
-        _todosError = 'COULD NOT LOAD TASKS';
+        _todosError = normalizeApiError(todosResult.reason, 'Could not load tasks.').toUpperCase();
       }
 
       if (remindersResult.status === 'fulfilled') {
         _reminders = Array.isArray(remindersResult.value.tasks) ? remindersResult.value.tasks : [];
         _remindersError = null;
       } else {
-        const err = remindersResult.reason;
         _reminders = [];
-        _remindersError = 'COULD NOT LOAD REMINDERS';
+        _remindersError = normalizeApiError(remindersResult.reason, 'Could not load reminders.').toUpperCase();
       }
 
       renderReminders();
-      renderActiveToolWindow();
+      render(loadData());
 
       if (!silent && (_todosError || _remindersError)) {
-        showToast(
-          'Could not load the reminders panel.'
-        );
+        showToast(_todosError || _remindersError || 'Could not load the planner.');
       }
     }
 
@@ -1814,10 +1986,11 @@
 
         document.getElementById('task-title').value = '';
         document.getElementById('task-desc').value  = '';
+        _composerWindow = null;
         await loadReminders({ silent: true });
         showToast('Task saved.');
       } catch (err) {
-        showToast('Could not save task.');
+        showToast(normalizeApiError(err, 'Could not save task.'));
       }
     }
 
@@ -1850,10 +2023,11 @@
         document.getElementById('rp-title').value = '';
         document.getElementById('rp-desc').value  = '';
         document.getElementById('rp-time').value  = '';
+        _composerWindow = null;
         await loadReminders({ silent: true });
         showToast('Reminder saved.');
       } catch (err) {
-        showToast('Could not save reminder.');
+        showToast(normalizeApiError(err, 'Could not save reminder.'));
       }
     }
 
@@ -1901,16 +2075,16 @@
       }
     }
 
-    function getTasksMarkup() {
+    function getTasksMarkup(items = _todos, emptyMessage = 'NO TASKS') {
       if (_todosError) {
         return `<div class="rp-empty">${_todosError}</div>`;
       }
 
-      if (_todos.length === 0) {
-        return '<div class="rp-empty">NO TASKS</div>';
+      if (items.length === 0) {
+        return `<div class="rp-empty">${emptyMessage}</div>`;
       }
 
-      return _todos.map(t => `
+      return items.map(t => `
         <div class="reminder-item">
           <div class="reminder-item-row">
             <div class="reminder-main">
@@ -1935,18 +2109,18 @@
       `).join('');
     }
 
-    function getRemindersMarkup() {
+    function getRemindersMarkup(items = _reminders, emptyMessage = 'NO REMINDERS') {
       if (_remindersError) {
         return `<div class="rp-empty">${_remindersError}</div>`;
       }
 
-      const sortedReminders = [..._reminders].sort((a, b) => {
+      const sortedReminders = [...items].sort((a, b) => {
         if (a.notified !== b.notified) return a.notified ? 1 : -1;
         return new Date(a.due_date) - new Date(b.due_date);
       });
 
       if (sortedReminders.length === 0) {
-        return '<div class="rp-empty">NO REMINDERS</div>';
+        return `<div class="rp-empty">${emptyMessage}</div>`;
       }
 
       return sortedReminders.map(r => {
@@ -1974,70 +2148,115 @@
       }).join('');
     }
 
-    function openTasksWindow() {
-      _activeToolWindow = 'tasks';
-      updateToolWindowButtons();
-      showModal(`
-        <div class="panel-window section-card">
-          <div class="section-header">
-            <span class="section-title">TASKS</span>
-            <div class="section-actions">
-              <button class="icon-btn" onclick="closeModal()" title="Close window" aria-label="Close window">
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
-                  <line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/>
-                </svg>
-              </button>
+    function openTaskComposer() {
+      _composerWindow = 'tasks';
+      render(loadData());
+    }
+
+    function openReminderComposer() {
+      _composerWindow = 'reminders';
+      render(loadData());
+    }
+
+    function closeComposer() {
+      _composerWindow = null;
+      render(loadData());
+    }
+
+    function renderPlannerView(view, query) {
+      const plannerView = document.getElementById('planner-view');
+      const source = view === 'tasks' ? _todos : _reminders;
+      const filtered = query
+        ? source.filter(item => {
+            const haystack = [
+              item.title,
+              item.description || '',
+              view === 'reminders' ? new Date(item.due_date).toLocaleString() : ''
+            ].join(' ').toLowerCase();
+            return haystack.includes(query);
+          })
+        : source;
+
+      const isComposerOpen = _composerWindow === view;
+      const title = view === 'tasks' ? 'TASKS' : 'REMINDERS';
+      const subtitle = view === 'tasks'
+        ? 'Quick tasks without a due date. Tick them off and they disappear.'
+        : 'Scheduled reminders with date and time. These are the ones that send push notifications.';
+      const createLabel = view === 'tasks' ? 'CREATE NEW TASK' : 'CREATE NEW REMINDER';
+      const emptyTitle = view === 'tasks' ? 'NO TASKS YET' : 'NO REMINDERS YET';
+      const emptyBody = view === 'tasks'
+        ? 'Add a simple task and mark it done when you finish it.'
+        : 'Add a reminder with a due date and the backend will handle the notification.';
+
+      const bodyMarkup = isComposerOpen
+        ? (view === 'tasks'
+          ? `
+            <div class="rp-form-layout">
+              <div class="rp-form-title">NEW TASK</div>
+              <input class="rp-input" id="task-title" type="text" placeholder="Title" maxlength="80" />
+              <input class="rp-input" id="task-desc" type="text" placeholder="Description (optional)" maxlength="200" />
+              <div class="panel-window-actions">
+                <button class="rp-add-btn" onclick="addTask()">+ ADD TASK</button>
+                <button class="window-create-btn secondary" onclick="closeComposer()">CANCEL</button>
+              </div>
             </div>
-          </div>
-          <div class="panel-window-body">${getTasksMarkup()}</div>
-          <div class="panel-window-footer">
-            <div class="rp-form-title">NEW TASK</div>
-            <input class="rp-input" id="task-title" type="text" placeholder="Title" maxlength="80" />
-            <input class="rp-input" id="task-desc" type="text" placeholder="Description (optional)" maxlength="200" />
-            <button class="rp-add-btn" onclick="addTask()">+ ADD TASK</button>
+          `
+          : `
+            <div class="rp-form-layout">
+              <div class="rp-form-title">NEW REMINDER</div>
+              <input class="rp-input" id="rp-title" type="text" placeholder="Title" maxlength="80" />
+              <input class="rp-input" id="rp-desc" type="text" placeholder="Description (optional)" maxlength="200" />
+              <input class="rp-input" id="rp-time" type="datetime-local" />
+              <div class="panel-window-actions">
+                <button class="rp-add-btn" onclick="addReminder()">+ ADD REMINDER</button>
+                <button class="window-create-btn secondary" onclick="closeComposer()">CANCEL</button>
+              </div>
+            </div>
+          `)
+        : (filtered.length === 0 && !query && !((view === 'tasks' && _todosError) || (view === 'reminders' && _remindersError))
+          ? `
+            <div class="planner-empty">
+              <strong>${emptyTitle}</strong>
+              <div>${emptyBody}</div>
+              <button class="window-create-btn" onclick="${view === 'tasks' ? 'openTaskComposer()' : 'openReminderComposer()'}">+ ${createLabel}</button>
+            </div>
+          `
+          : `<div class="planner-list">${view === 'tasks'
+              ? getTasksMarkup(filtered, query ? 'NO MATCHING TASKS' : 'NO TASKS')
+              : getRemindersMarkup(filtered, query ? 'NO MATCHING REMINDERS' : 'NO REMINDERS')
+            }</div>`);
+
+      plannerView.innerHTML = `
+        <div class="planner-shell">
+          <div class="planner-card section-card">
+            <div class="section-header">
+              <div class="planner-head-copy">
+                <span class="section-title">${title}</span>
+                <span class="planner-subtitle">${subtitle}</span>
+              </div>
+              <div class="section-actions">
+                <button class="window-create-btn${isComposerOpen ? ' secondary' : ''}" onclick="${isComposerOpen ? 'closeComposer()' : (view === 'tasks' ? 'openTaskComposer()' : 'openReminderComposer()')}">
+                  ${isComposerOpen ? 'BACK TO LIST' : `+ ${createLabel}`}
+                </button>
+              </div>
+            </div>
+            <div class="panel-window-body">${bodyMarkup}</div>
           </div>
         </div>
-      `, { preserveActiveToolWindow: true });
+      `;
+    }
+
+    function openTasksWindow() {
+      setWorkspace('tasks');
     }
 
     function openRemindersWindow() {
-      _activeToolWindow = 'reminders';
-      updateToolWindowButtons();
-      showModal(`
-        <div class="panel-window section-card">
-          <div class="section-header">
-            <span class="section-title">REMINDERS</span>
-            <div class="section-actions">
-              <button class="icon-btn" onclick="closeModal()" title="Close window" aria-label="Close window">
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
-                  <line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-          <div class="panel-window-body">${getRemindersMarkup()}</div>
-          <div class="panel-window-footer">
-            <div class="rp-form-title">NEW REMINDER</div>
-            <input class="rp-input" id="rp-title" type="text" placeholder="Title" maxlength="80" />
-            <input class="rp-input" id="rp-desc" type="text" placeholder="Description (optional)" maxlength="200" />
-            <input class="rp-input" id="rp-time" type="datetime-local" />
-            <button class="rp-add-btn" onclick="addReminder()">+ ADD REMINDER</button>
-          </div>
-        </div>
-      `, { preserveActiveToolWindow: true });
+      setWorkspace('reminders');
     }
 
     function renderActiveToolWindow() {
-      if (_activeToolWindow === 'tasks') {
-        openTasksWindow();
-      } else if (_activeToolWindow === 'reminders') {
-        openRemindersWindow();
-      }
+      render(loadData());
     }
-
-    // ============================================================
-    // TOOL WINDOWS
-    // ============================================================
 
     function toggleRemindersPanel() {
       openRemindersWindow();

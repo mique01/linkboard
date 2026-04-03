@@ -14,7 +14,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ tasks });
   } catch (error) {
     console.error('[tasks/get]', error);
-    return NextResponse.json({ error: 'Internal error' }, { status: 500 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Internal error' },
+      { status: 500 }
+    );
   }
 }
 
@@ -55,6 +58,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ task }, { status: 201 });
   } catch (error) {
     console.error('[tasks/post]', error);
-    return NextResponse.json({ error: 'Internal error' }, { status: 500 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Internal error' },
+      { status: 500 }
+    );
   }
 }

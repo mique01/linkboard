@@ -14,7 +14,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ todos });
   } catch (error) {
     console.error('[todos/get]', error);
-    return NextResponse.json({ error: 'Internal error' }, { status: 500 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Internal error' },
+      { status: 500 }
+    );
   }
 }
 
@@ -44,6 +47,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ todo }, { status: 201 });
   } catch (error) {
     console.error('[todos/post]', error);
-    return NextResponse.json({ error: 'Internal error' }, { status: 500 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Internal error' },
+      { status: 500 }
+    );
   }
 }

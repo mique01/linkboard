@@ -3,7 +3,7 @@
 // Offline caching + Web Push notification handler
 // ============================================================
 
-const CACHE_NAME = 'linkboard-v2';
+const CACHE_NAME = 'linkboard-v3';
 
 const PRECACHE_URLS = [
   '/dashboard.html',
@@ -31,8 +31,52 @@ self.addEventListener('activate', event => {
 
 // ---- Fetch: cache-first strategy ----
 self.addEventListener('fetch', event => {
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
+  const url = new URL(event.request.url);
+
+  if (url.origin !== self.location.origin) {
+    return;
+  }
+
+  const isCoreAsset =
+    event.request.mode === 'navigate' ||
+    PRECACHE_URLS.includes(url.pathname) ||
+    url.pathname === '/service-worker.js';
+
+  if (isCoreAsset) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+          }
+          return response;
+        })
+        .catch(async () => {
+          const cached = await caches.match(event.request);
+          if (cached) return cached;
+          return caches.match('/dashboard.html');
+        })
+    );
+    return;
+  }
+
   event.respondWith(
-    caches.match(event.request).then(cached => cached || fetch(event.request))
+    caches.match(event.request).then(cached => {
+      if (cached) return cached;
+
+      return fetch(event.request).then(response => {
+        if (response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+        }
+        return response;
+      });
+    })
   );
 });
 
