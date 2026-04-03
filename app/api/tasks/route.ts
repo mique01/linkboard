@@ -4,13 +4,7 @@ import { getDeviceIdFromRequest } from '../../../lib/supabase';
 
 export async function GET(req: NextRequest) {
   try {
-    const deviceId = getDeviceIdFromRequest(req);
-
-    if (!deviceId) {
-      return NextResponse.json({ error: 'Missing device id' }, { status: 400 });
-    }
-
-    const tasks = await listTasksForDevice(deviceId);
+    const tasks = await listTasksForDevice();
     return NextResponse.json({ tasks });
   } catch (error) {
     console.error('[tasks/get]', error);

@@ -45,11 +45,10 @@ function buildQuery(params: Record<string, string | number | boolean | undefined
   return query ? `?${query}` : '';
 }
 
-export async function listTasksForDevice(deviceId: string) {
+export async function listTasksForDevice(_deviceId?: string) {
   return supabaseAdminRequest<TaskRecord[]>(
     `/rest/v1/tasks${buildQuery({
       select: 'id,user_id,device_id,title,description,due_date,notified,created_at',
-      device_id: `eq.${deviceId}`,
       order: 'due_date.asc',
     })}`
   );
@@ -79,12 +78,11 @@ export async function createTaskForDevice(input: {
   return rows[0] ?? null;
 }
 
-export async function deleteTaskForDevice(taskId: string, deviceId: string) {
+export async function deleteTaskForDevice(taskId: string, _deviceId?: string) {
   const rows = await supabaseAdminRequest<TaskRecord[]>(
     `/rest/v1/tasks${buildQuery({
       select: 'id',
       id: `eq.${taskId}`,
-      device_id: `eq.${deviceId}`,
     })}`,
     {
       method: 'DELETE',
@@ -97,11 +95,10 @@ export async function deleteTaskForDevice(taskId: string, deviceId: string) {
   return rows.length > 0;
 }
 
-export async function listTodosForDevice(deviceId: string) {
+export async function listTodosForDevice(_deviceId?: string) {
   return supabaseAdminRequest<TodoRecord[]>(
     `/rest/v1/todos${buildQuery({
       select: 'id,user_id,device_id,title,description,created_at',
-      device_id: `eq.${deviceId}`,
       order: 'created_at.desc',
     })}`
   );
@@ -129,12 +126,11 @@ export async function createTodoForDevice(input: {
   return rows[0] ?? null;
 }
 
-export async function deleteTodoForDevice(todoId: string, deviceId: string) {
+export async function deleteTodoForDevice(todoId: string, _deviceId?: string) {
   const rows = await supabaseAdminRequest<TodoRecord[]>(
     `/rest/v1/todos${buildQuery({
       select: 'id',
       id: `eq.${todoId}`,
-      device_id: `eq.${deviceId}`,
     })}`,
     {
       method: 'DELETE',

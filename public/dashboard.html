@@ -205,44 +205,147 @@
       padding-top: 12px;
     }
     .planner-card {
-      width: min(860px, 100%);
-      min-height: 420px;
+      width: min(840px, 100%);
+      min-height: 280px;
     }
     .planner-card .section-header {
       cursor: default;
-    }
-    .planner-head-copy {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      min-width: 0;
-      flex: 1;
-    }
-    .planner-subtitle {
-      font-size: 12px;
-      color: var(--text-dim);
-      line-height: 1.45;
+      padding: 14px 18px;
     }
     .planner-list {
       display: flex;
       flex-direction: column;
-      gap: 10px;
     }
     .planner-empty {
-      min-height: 240px;
+      min-height: 180px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 14px;
+      gap: 12px;
       text-align: center;
       color: var(--text-dim);
+      padding: 32px 20px;
     }
     .planner-empty strong {
       font-family: var(--font-mono);
       font-size: 11px;
       letter-spacing: .12em;
       color: var(--text);
+    }
+    .planner-create-inline {
+      width: 100%;
+      border: none;
+      border-top: 1px solid var(--border);
+      background: transparent;
+      color: var(--accent);
+      font-family: var(--font-ui);
+      font-size: 14px;
+      text-align: left;
+      padding: 18px 20px;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .planner-create-inline:hover {
+      background: rgba(200,168,75,.06);
+    }
+    .planner-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      min-height: 60px;
+      padding: 0 20px;
+      border-top: 1px solid var(--border);
+    }
+    .planner-row:hover {
+      background: rgba(255,255,255,.015);
+    }
+    .planner-row-main {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+      flex: 1;
+    }
+    .planner-row-meta {
+      color: var(--text-dim);
+      font-size: 15px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .planner-row-icon {
+      width: 18px;
+      height: 18px;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+    .planner-row-title {
+      font-size: 18px;
+      color: var(--text);
+      letter-spacing: .01em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .planner-row-delete {
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 6px;
+      margin-right: -6px;
+      transition: color .15s;
+    }
+    .planner-row-delete:hover {
+      color: var(--danger);
+    }
+    .planner-task-check {
+      width: 28px;
+      height: 28px;
+      appearance: none;
+      -webkit-appearance: none;
+      border: 2px solid var(--border-hi);
+      border-radius: 4px;
+      background: transparent;
+      cursor: pointer;
+      position: relative;
+      flex-shrink: 0;
+    }
+    .planner-task-check:checked {
+      border-color: var(--accent);
+      background: rgba(200,168,75,.12);
+    }
+    .planner-task-check:checked::after {
+      content: '';
+      position: absolute;
+      left: 8px;
+      top: 3px;
+      width: 7px;
+      height: 14px;
+      border: solid var(--accent);
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+    .planner-form {
+      border-top: 1px solid var(--border);
+      padding: 18px 20px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .planner-form-title {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: .12em;
+      color: var(--accent);
+    }
+    .planner-form-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
     }
 
     /* ============================================================
@@ -1989,25 +2092,27 @@
 
     async function addTask() {
       const title = document.getElementById('task-title').value.trim();
-      const desc  = document.getElementById('task-desc').value.trim();
       if (!title) {
         showToast('Task title is required.');
         return;
       }
 
       try {
-        await apiJson('/api/todos', {
+        const result = await apiJson('/api/todos', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            title,
-            description: desc
+            title
           })
         });
 
+        if (result && result.todo) {
+          _todos = [result.todo, ..._todos.filter(item => item.id !== result.todo.id)];
+        }
+
         document.getElementById('task-title').value = '';
-        document.getElementById('task-desc').value  = '';
         _composerWindow = null;
+        render(loadData());
         await loadReminders({ silent: true });
         showToast('Task saved.');
       } catch (err) {
@@ -2017,7 +2122,6 @@
 
     async function addReminder() {
       const title = document.getElementById('rp-title').value.trim();
-      const desc  = document.getElementById('rp-desc').value.trim();
       const time  = document.getElementById('rp-time').value;
       if (!title || !time) {
         showToast('Title and date/time are required.');
@@ -2031,20 +2135,24 @@
       }
 
       try {
-        await apiJson('/api/tasks', {
+        const result = await apiJson('/api/tasks', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             title,
-            description: desc,
             dueDate: dueDate.toISOString()
           })
         });
 
+        if (result && result.task) {
+          _reminders = [..._reminders.filter(item => item.id !== result.task.id), result.task]
+            .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
+        }
+
         document.getElementById('rp-title').value = '';
-        document.getElementById('rp-desc').value  = '';
         document.getElementById('rp-time').value  = '';
         _composerWindow = null;
+        render(loadData());
         await loadReminders({ silent: true });
         showToast('Reminder saved.');
       } catch (err) {
@@ -2057,6 +2165,8 @@
         await apiJson(`/api/todos/${encodeURIComponent(id)}`, {
           method: 'DELETE'
         });
+        _todos = _todos.filter(item => item.id !== id);
+        render(loadData());
         await loadReminders({ silent: true });
         if (successMessage) {
           showToast(successMessage);
@@ -2071,6 +2181,8 @@
         await apiJson(`/api/tasks/${encodeURIComponent(id)}`, {
           method: 'DELETE'
         });
+        _reminders = _reminders.filter(item => item.id !== id);
+        render(loadData());
         await loadReminders({ silent: true });
         if (successMessage) {
           showToast(successMessage);
@@ -2106,26 +2218,17 @@
       }
 
       return items.map(t => `
-        <div class="reminder-item">
-          <div class="reminder-item-row">
-            <div class="reminder-main">
-              <input
-                class="reminder-check"
-                type="checkbox"
-                title="Mark task as done"
-                aria-label="Mark task as done"
-                onchange="completeTask('${escHtml(t.id)}')"
-              />
-              <span class="reminder-title">${escHtml(t.title)}</span>
-            </div>
-            <button class="icon-btn danger" title="Delete task"
-              onclick="deleteTask('${escHtml(t.id)}')">
-              <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
-                <line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/>
-              </svg>
-            </button>
+        <div class="planner-row">
+          <div class="planner-row-main">
+            <input
+              class="planner-task-check"
+              type="checkbox"
+              title="Mark task as done"
+              aria-label="Mark task as done"
+              onchange="completeTask('${escHtml(t.id)}')"
+            />
+            <span class="planner-row-title">${escHtml(t.title)}</span>
           </div>
-          ${t.description ? `<div class="reminder-desc">${escHtml(t.description)}</div>` : ''}
         </div>
       `).join('');
     }
@@ -2146,25 +2249,36 @@
 
       return sortedReminders.map(r => {
         const dt = new Date(r.due_date);
-        const dateStr = dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-        const timeStr = dt.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+        const today = new Date();
+        const isToday = dt.toDateString() === today.toDateString();
+        const datePart = isToday
+          ? 'Today'
+          : dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: dt.getFullYear() !== today.getFullYear() ? 'numeric' : undefined });
+        const timePart = dt.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+        const dueText = `${datePart} at ${timePart}`;
         return `
-          <div class="reminder-item${r.notified ? ' fired' : ''}">
-            <div class="reminder-item-row">
-              <span class="reminder-title">${escHtml(r.title)}</span>
-              <button class="icon-btn danger" title="Delete reminder"
-                onclick="deleteReminder('${escHtml(r.id)}')">
-                <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
-                  <line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/>
-                </svg>
-              </button>
+          <div class="planner-row${r.notified ? ' reminder-item fired' : ''}">
+            <div class="planner-row-main">
+              <svg class="planner-row-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 3a4.5 4.5 0 0 0-4.5 4.5v2.2c0 .74-.22 1.46-.63 2.07L5.2 14.5c-.42.63.03 1.5.78 1.5h12.04c.75 0 1.2-.87.78-1.5l-1.67-2.73a3.9 3.9 0 0 1-.63-2.07V7.5A4.5 4.5 0 0 0 12 3Zm0 18a2.24 2.24 0 0 0 2.12-1.5H9.88A2.24 2.24 0 0 0 12 21Z"/>
+              </svg>
+              <span class="planner-row-title">${escHtml(r.title)}</span>
             </div>
-            ${r.description ? `<div class="reminder-desc">${escHtml(r.description)}</div>` : ''}
-            <div class="reminder-item-row">
-              <span class="reminder-time">${dateStr} ${timeStr}</span>
-              ${r.notified ? '<span class="reminder-fired-label">FIRED</span>' : ''}
-            </div>
+            <span class="planner-row-meta">${escHtml(dueText)}</span>
+            <button class="planner-row-delete" title="Delete reminder"
+              onclick="deleteReminder('${escHtml(r.id)}')">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/>
+              </svg>
+            </button>
           </div>
+          ${r.description ? `
+            <div class="planner-row" style="min-height:40px;padding-top:0;padding-bottom:12px;border-top:none;">
+              <div class="planner-row-main" style="padding-left:32px;">
+                <span class="reminder-desc">${escHtml(r.description)}</span>
+              </div>
+            </div>
+          ` : ''}
         `;
       }).join('');
     }
@@ -2200,10 +2314,7 @@
 
       const isComposerOpen = _composerWindow === view;
       const title = view === 'tasks' ? 'TASKS' : 'REMINDERS';
-      const subtitle = view === 'tasks'
-        ? 'Quick tasks without a due date. Tick them off and they disappear.'
-        : 'Scheduled reminders with date and time. These are the ones that send push notifications.';
-      const createLabel = view === 'tasks' ? 'CREATE NEW TASK' : 'CREATE NEW REMINDER';
+      const createLabel = view === 'tasks' ? 'Create New Task' : 'Create New Reminder';
       const emptyTitle = view === 'tasks' ? 'NO TASKS YET' : 'NO REMINDERS YET';
       const emptyBody = view === 'tasks'
         ? 'Add a simple task and mark it done when you finish it.'
@@ -2212,23 +2323,21 @@
       const bodyMarkup = isComposerOpen
         ? (view === 'tasks'
           ? `
-            <div class="rp-form-layout">
-              <div class="rp-form-title">NEW TASK</div>
+            <div class="planner-form">
+              <div class="planner-form-title">NEW TASK</div>
               <input class="rp-input" id="task-title" type="text" placeholder="Title" maxlength="80" />
-              <input class="rp-input" id="task-desc" type="text" placeholder="Description (optional)" maxlength="200" />
-              <div class="panel-window-actions">
+              <div class="planner-form-actions">
                 <button class="rp-add-btn" onclick="addTask()">+ ADD TASK</button>
                 <button class="window-create-btn secondary" onclick="closeComposer()">CANCEL</button>
               </div>
             </div>
           `
           : `
-            <div class="rp-form-layout">
-              <div class="rp-form-title">NEW REMINDER</div>
+            <div class="planner-form">
+              <div class="planner-form-title">NEW REMINDER</div>
               <input class="rp-input" id="rp-title" type="text" placeholder="Title" maxlength="80" />
-              <input class="rp-input" id="rp-desc" type="text" placeholder="Description (optional)" maxlength="200" />
               <input class="rp-input" id="rp-time" type="datetime-local" />
-              <div class="panel-window-actions">
+              <div class="planner-form-actions">
                 <button class="rp-add-btn" onclick="addReminder()">+ ADD REMINDER</button>
                 <button class="window-create-btn secondary" onclick="closeComposer()">CANCEL</button>
               </div>
@@ -2245,23 +2354,20 @@
           : `<div class="planner-list">${view === 'tasks'
               ? getTasksMarkup(filtered, query ? 'NO MATCHING TASKS' : 'NO TASKS')
               : getRemindersMarkup(filtered, query ? 'NO MATCHING REMINDERS' : 'NO REMINDERS')
-            }</div>`);
+            }<button class="planner-create-inline" onclick="${view === 'tasks' ? 'openTaskComposer()' : 'openReminderComposer()'}">+ ${createLabel}</button></div>`);
 
       plannerView.innerHTML = `
         <div class="planner-shell">
           <div class="planner-card section-card">
             <div class="section-header">
-              <div class="planner-head-copy">
-                <span class="section-title">${title}</span>
-                <span class="planner-subtitle">${subtitle}</span>
-              </div>
+              <span class="section-title">${title}</span>
               <div class="section-actions">
                 <button class="window-create-btn${isComposerOpen ? ' secondary' : ''}" onclick="${isComposerOpen ? 'closeComposer()' : (view === 'tasks' ? 'openTaskComposer()' : 'openReminderComposer()')}">
-                  ${isComposerOpen ? 'BACK TO LIST' : `+ ${createLabel}`}
+                  ${isComposerOpen ? 'Back to List' : `+ ${createLabel}`}
                 </button>
               </div>
             </div>
-            <div class="panel-window-body">${bodyMarkup}</div>
+            <div class="panel-window-body" style="padding:0;gap:0;min-height:0;">${bodyMarkup}</div>
           </div>
         </div>
       `;
