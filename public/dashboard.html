@@ -4,6 +4,32 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LINKBOARD</title>
+  <script>
+    (function () {
+      const CANONICAL_ORIGIN = 'https://linkboard-m5wi.vercel.app';
+      const DASHBOARD_PATH = '/dashboard.html';
+      const APP_VERSION = '20260403b';
+
+      try {
+        const current = new URL(window.location.href);
+        const onPreviewDomain =
+          current.hostname.endsWith('.vercel.app') &&
+          current.hostname !== 'linkboard-m5wi.vercel.app';
+
+        if (onPreviewDomain || current.pathname !== DASHBOARD_PATH) {
+          const target = new URL(DASHBOARD_PATH, CANONICAL_ORIGIN);
+          target.searchParams.set('v', APP_VERSION);
+          window.location.replace(target.toString());
+          return;
+        }
+
+        if (current.searchParams.get('v') !== APP_VERSION) {
+          current.searchParams.set('v', APP_VERSION);
+          window.location.replace(current.toString());
+        }
+      } catch {}
+    })();
+  </script>
   <link rel="manifest" href="/manifest.json?v=20260403" />
   <meta name="theme-color" content="#1b1f24" />
   <link rel="apple-touch-icon" href="/icon.png" />
@@ -1649,11 +1675,6 @@
     }
 
     // ============================================================
-    // INIT
-    // ============================================================
-    render(loadData());
-
-    // ============================================================
     // PWA INSTALL
     // Captures the beforeinstallprompt event so we can trigger it
     // on demand from our custom "Install App" button.
@@ -2280,6 +2301,7 @@
     // ============================================================
     // INIT REMINDERS ON LOAD
     // ============================================================
+    render(loadData());
     renderReminders();
     loadReminders({ silent: true });
   </script>
