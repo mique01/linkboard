@@ -2354,7 +2354,7 @@
           : `<div class="planner-list">${view === 'tasks'
               ? getTasksMarkup(filtered, query ? 'NO MATCHING TASKS' : 'NO TASKS')
               : getRemindersMarkup(filtered, query ? 'NO MATCHING REMINDERS' : 'NO REMINDERS')
-            }<button class="planner-create-inline" onclick="${view === 'tasks' ? 'openTaskComposer()' : 'openReminderComposer()'}">+ ${createLabel}</button></div>`);
+            }</div>`);
 
       plannerView.innerHTML = `
         <div class="planner-shell">
