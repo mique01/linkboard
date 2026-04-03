@@ -2,14 +2,13 @@
   "name": "my-project",
   "version": "0.1.0",
   "private": true,
-  "main": "electron/main.cjs",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "desktop": "electron .",
-    "desktop:package": "electron-builder --win portable"
+    "desktop:install": "npm --prefix desktop install",
+    "desktop": "npm --prefix desktop run start"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -69,30 +68,10 @@
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@types/web-push": "^3.6.4",
-    "electron": "^37.10.3",
-    "electron-builder": "^26.8.1",
     "postcss": "^8.5",
     "shadcn": "^4.0.0",
     "tailwindcss": "^4.2.0",
     "tw-animate-css": "1.3.3",
     "typescript": "5.7.3"
-  },
-  "build": {
-    "appId": "com.linkboard.desktop",
-    "productName": "Linkboard",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "electron/**/*",
-      "public/**/*",
-      "package.json"
-    ],
-    "win": {
-      "target": [
-        "portable"
-      ],
-      "icon": "public/icon.png"
-    }
   }
 }
