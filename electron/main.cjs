@@ -1,5 +1,6 @@
+const fs = require('fs');
 const path = require('path');
-const { app, BrowserWindow, Menu, Tray, nativeImage, shell } = require('electron');
+const { app, BrowserWindow, Menu, Tray, nativeImage, shell, session } = require('electron');
 
 const APP_URL =
   process.env.LINKBOARD_APP_URL ||
@@ -8,6 +9,43 @@ const APP_URL =
 let mainWindow = null;
 let tray = null;
 let isQuitting = false;
+
+function configureAppDataPaths() {
+  const basePath = path.join(app.getPath('appData'), 'LinkboardDesktop');
+  const sessionPath = path.join(basePath, 'session-data');
+
+  fs.mkdirSync(basePath, { recursive: true });
+  fs.mkdirSync(sessionPath, { recursive: true });
+
+  app.setPath('userData', basePath);
+  app.setPath('sessionData', sessionPath);
+}
+
+function configurePermissions() {
+  const isTrustedOrigin = (origin) =>
+    origin === 'https://linkboard-m5wi.vercel.app' ||
+    origin === 'https://linkboard-m5wi.vercel.app:443';
+
+  session.defaultSession.setPermissionCheckHandler((_wc, permission, requestingOrigin) => {
+    if (permission === 'notifications' || permission === 'persistent-storage') {
+      return isTrustedOrigin(requestingOrigin);
+    }
+
+    return false;
+  });
+
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback, details) => {
+    if (
+      (permission === 'notifications' || permission === 'persistent-storage') &&
+      isTrustedOrigin(details.requestingOrigin)
+    ) {
+      callback(true);
+      return;
+    }
+
+    callback(false);
+  });
+}
 
 function createTray() {
   if (tray) return;
@@ -96,6 +134,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  configurePermissions();
   createTray();
   createWindow();
 
@@ -119,3 +158,5 @@ app.on('before-quit', () => {
 app.on('window-all-closed', (event) => {
   event.preventDefault();
 });
+
+configureAppDataPaths();
