@@ -14,11 +14,11 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:         #111214;
-      --surface:    #18191d;
-      --surface2:   #202227;
-      --border:     #2e3038;
-      --border-hi:  #42454f;
+      --bg:         #171a1f;
+      --surface:    #20242a;
+      --surface2:   #282d35;
+      --border:     #373e49;
+      --border-hi:  #4d5663;
       --text:       #eef2f7;
       --text-dim:   #c8d0db;
       --text-muted: #8b93a3;
@@ -70,6 +70,31 @@
       color: var(--accent);
       white-space: nowrap;
       user-select: none;
+    }
+    .brand-nav {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .brand-link {
+      background: none;
+      border: none;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      color: rgba(200,168,75,.72);
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: color .15s;
+    }
+    .brand-link:hover,
+    .brand-link.active {
+      color: var(--accent);
     }
 
     #topbar .divider {
@@ -150,7 +175,7 @@
       justify-content: center;
       gap: 16px;
       padding: 100px 20px;
-      color: var(--text-muted);
+      color: var(--text-dim);
       text-align: center;
     }
     #empty-state .es-icon {
@@ -827,7 +852,11 @@
 
   <!-- ===================== TOPBAR ===================== -->
   <header id="topbar">
-    <div class="logo">LINKBOARD</div>
+    <button class="logo brand-link active" onclick="closeModal()">LINKBOARD</button>
+    <div class="brand-nav">
+      <button id="btn-reminders" class="brand-link" onclick="openRemindersWindow()" title="Open reminders">REMINDERS <span id="reminder-badge" class="reminder-badge" style="display:none">0</span></button>
+      <button id="btn-tasks" class="brand-link" onclick="openTasksWindow()" title="Open tasks">TASKS</button>
+    </div>
     <div class="divider"></div>
 
     <!-- Search -->
@@ -855,21 +884,6 @@
         <path d="M6.5 13.5a1.5 1.5 0 0 0 3 0"/>
       </svg>
       <span class="btn-label">NOTIFICATIONS</span>
-    </button>
-
-    <button id="btn-tasks" class="topbar-btn" onclick="openTasksWindow()" title="Open tasks">
-      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
-        <path d="M3 4.5h7"/><path d="M3 8h7"/><path d="M3 11.5h7"/><path d="M12.5 4.5l.75.75 1.75-1.75"/>
-      </svg>
-      <span class="btn-label">TASKS</span>
-    </button>
-
-    <button id="btn-reminders" class="topbar-btn" onclick="openRemindersWindow()" title="Open reminders">
-      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
-        <circle cx="8" cy="8" r="6"/><path d="M8 5v3.5l2 2"/>
-      </svg>
-      <span class="btn-label">REMINDERS</span>
-      <span id="reminder-badge" class="reminder-badge" style="display:none">0</span>
     </button>
 
     <!-- Add Section -->
