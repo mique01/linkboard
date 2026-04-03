@@ -3,7 +3,7 @@
 // Offline caching + Web Push notification handler
 // ============================================================
 
-const CACHE_NAME = 'linkboard-v3';
+const CACHE_NAME = 'linkboard-v4';
 
 const PRECACHE_URLS = [
   '/dashboard.html',
@@ -38,6 +38,11 @@ self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
   if (url.origin !== self.location.origin) {
+    return;
+  }
+
+  if (url.pathname.startsWith('/api/')) {
+    event.respondWith(fetch(event.request));
     return;
   }
 
