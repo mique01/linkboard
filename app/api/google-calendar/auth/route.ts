@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
         'email',
         'profile',
         'https://www.googleapis.com/auth/calendar.events',
+        'https://www.googleapis.com/auth/calendar.calendarlist.readonly',
       ].join(' '),
       access_type: 'offline',
       prompt: 'consent select_account',

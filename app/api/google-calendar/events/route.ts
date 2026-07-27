@@ -31,6 +31,7 @@ function mapEvent(event: Record<string, any>) {
     organizer: event.organizer || null,
     creator: event.creator || null,
     recurringEventId: event.recurringEventId || null,
+    reminders: event.reminders || { useDefault: true },
     status: event.status,
   }
 }
@@ -54,18 +55,29 @@ export async function GET(req: NextRequest) {
       timeMin: from || new Date().toISOString(),
       timeMax: to || new Date(Date.now() + 31 * 86400000).toISOString(),
     })
-    const calendarResponse = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`,
-      {
-        headers: { authorization: `Bearer ${token.accessToken}` },
-        cache: 'no-store',
-      },
-    )
+    const requestOptions = {
+      headers: { authorization: `Bearer ${token.accessToken}` },
+      cache: 'no-store' as const,
+    }
+    const [calendarResponse, settingsResponse] = await Promise.all([
+      fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`,
+        requestOptions,
+      ),
+      fetch(
+        'https://www.googleapis.com/calendar/v3/users/me/calendarList/primary',
+        requestOptions,
+      ),
+    ])
     if (!calendarResponse.ok) {
       return NextResponse.json({ error: 'Calendar request failed' }, { status: 502 })
     }
     const data = await calendarResponse.json()
-    const response = NextResponse.json({ events: (data.items || []).map(mapEvent) })
+    const settings = settingsResponse.ok ? await settingsResponse.json() : {}
+    const response = NextResponse.json({
+      events: (data.items || []).map(mapEvent),
+      defaultReminders: settings.defaultReminders || [],
+    })
     if (token.refreshedTokens) setTokenCookies(response, token.refreshedTokens)
     return response
   } catch {

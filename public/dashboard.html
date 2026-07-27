@@ -8,7 +8,7 @@
     (function () {
       const CANONICAL_ORIGIN = 'https://linkboard-m5wi.vercel.app';
       const DASHBOARD_PATH = '/dashboard.html';
-      const APP_VERSION = '20260727e';
+      const APP_VERSION = '20260727f';
 
       try {
         const current = new URL(window.location.href);
@@ -1961,6 +1961,8 @@
     let _calendarError = null;
     let _calendarNotice = null;
     let _calendarMonth = new Date();
+    let _calendarDefaultReminders = [];
+    let _calendarAlertTimer = null;
 
     function getDeviceId() {
       if (_deviceId) return _deviceId;
@@ -2037,6 +2039,8 @@
         updateNotifBtn();
         return false;
       }
+      localStorage.setItem('linkboard_calendar_alerts', 'on');
+      startCalendarAlertLoop();
 
       const vapidPublicKey = await getVapidPublicKey();
       if (!vapidPublicKey) {
@@ -2542,6 +2546,7 @@
           const data = await eventsResponse.json();
           if (!eventsResponse.ok) throw new Error(data.error || 'Could not load calendar');
           _calendarEvents = data.events || [];
+          _calendarDefaultReminders = data.defaultReminders || [];
         }
       } catch (error) {
         _calendarError = error.message || 'Could not load calendar';
@@ -2564,6 +2569,114 @@
       _calendarStatus = { connected: false, configured: true };
       _calendarEvents = [];
       render(loadData());
+    }
+
+    function calendarAlertsEnabled() {
+      return typeof Notification !== 'undefined' &&
+        Notification.permission === 'granted' &&
+        localStorage.getItem('linkboard_calendar_alerts') !== 'off';
+    }
+
+    async function toggleCalendarAlerts() {
+      if (calendarAlertsEnabled()) {
+        localStorage.setItem('linkboard_calendar_alerts', 'off');
+        showToast('Calendar alerts paused in Linkboard.');
+        render(loadData());
+        return;
+      }
+      if (typeof Notification === 'undefined') {
+        showToast('Desktop notifications are not supported.');
+        return;
+      }
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        showToast('Notification permission was not granted.');
+        render(loadData());
+        return;
+      }
+      localStorage.setItem('linkboard_calendar_alerts', 'on');
+      showToast('Calendar alerts enabled in Linkboard.');
+      startCalendarAlertLoop();
+      checkCalendarAlerts();
+      render(loadData());
+    }
+
+    function startCalendarAlertLoop() {
+      if (_calendarAlertTimer) clearInterval(_calendarAlertTimer);
+      if (!calendarAlertsEnabled()) return;
+      checkCalendarAlerts();
+      _calendarAlertTimer = setInterval(checkCalendarAlerts, 60000);
+    }
+
+    async function showCalendarAlert(event, minutesUntil) {
+      const bodyParts = [
+        minutesUntil <= 1 ? 'Starting now' : `Starts in ${minutesUntil} minutes`,
+        event.location || ''
+      ].filter(Boolean);
+      const options = {
+        body: bodyParts.join(' · '),
+        icon: '/icon.png',
+        badge: '/icon.png',
+        tag: `linkboard-calendar-${event.id}-${event.start}`,
+        renotify: false,
+        data: { url: '/dashboard.html?v=20260727f' }
+      };
+      try {
+        if ('serviceWorker' in navigator) {
+          const registration = await navigator.serviceWorker.ready;
+          await registration.showNotification(`Calendar · ${event.title}`, options);
+        } else {
+          new Notification(`Calendar · ${event.title}`, options);
+        }
+      } catch (error) {
+        console.log('[calendar-alert] notification failed', error);
+      }
+    }
+
+    async function checkCalendarAlerts() {
+      if (!calendarAlertsEnabled()) return;
+      try {
+        const now = new Date();
+        const horizon = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        const params = new URLSearchParams({
+          from: now.toISOString(),
+          to: horizon.toISOString()
+        });
+        const response = await fetch(`/api/google-calendar/events?${params}`, { cache: 'no-store' });
+        if (!response.ok) return;
+        const data = await response.json();
+        const defaultReminders = data.defaultReminders || [];
+        const alerted = JSON.parse(localStorage.getItem('linkboard_calendar_alerted') || '{}');
+        const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        Object.keys(alerted).forEach(key => {
+          if (alerted[key] < cutoff) delete alerted[key];
+        });
+
+        for (const event of data.events || []) {
+          if (event.allDay || event.status === 'cancelled') continue;
+          const self = (event.attendees || []).find(attendee => attendee.self);
+          if (self && self.responseStatus === 'declined') continue;
+          const reminderConfig = event.reminders || { useDefault: true };
+          const configured = reminderConfig.useDefault
+            ? defaultReminders
+            : (reminderConfig.overrides || []);
+          const minutes = configured.length
+            ? configured.map(reminder => Number(reminder.minutes)).filter(Number.isFinite)
+            : (reminderConfig.useDefault ? [10] : []);
+          if (!minutes.length) continue;
+          const start = new Date(event.start).getTime();
+          const minutesUntil = Math.max(0, Math.ceil((start - Date.now()) / 60000));
+          const reminderWindow = Math.max(...minutes);
+          const alertKey = `${event.id}|${event.start}`;
+          if (start > Date.now() && minutesUntil <= reminderWindow && !alerted[alertKey]) {
+            alerted[alertKey] = Date.now();
+            await showCalendarAlert(event, minutesUntil);
+          }
+        }
+        localStorage.setItem('linkboard_calendar_alerted', JSON.stringify(alerted));
+      } catch (error) {
+        console.log('[calendar-alert] check failed', error);
+      }
     }
 
     function toLocalInputValue(value) {
@@ -2829,6 +2942,9 @@
             <button class="calendar-btn" onclick="changeCalendarMonth(1)" aria-label="Next month">&rarr;</button>
             <h2 class="calendar-title">${escHtml(monthLabel)}</h2>
             <span class="calendar-account">${escHtml(_calendarStatus.email || 'miqueas.elias@allaria.com.ar')}</span>
+            <button class="calendar-btn${calendarAlertsEnabled() ? ' primary' : ''}" onclick="toggleCalendarAlerts()">
+              ALERTS: ${calendarAlertsEnabled() ? 'ON' : 'OFF'}
+            </button>
             <button class="calendar-btn primary" onclick="openCalendarComposer()">+ NEW EVENT</button>
             <button class="calendar-btn" onclick="disconnectCalendar()">DISCONNECT</button>
           </div>
@@ -2869,11 +2985,12 @@
         _calendarNotice = 'Use miqueas.elias@allaria.com.ar to connect this calendar.';
       }
       loadCalendar();
-      history.replaceState({}, '', '/dashboard.html?v=20260727e');
+      history.replaceState({}, '', '/dashboard.html?v=20260727f');
     }
     render(loadData());
     renderReminders();
     loadReminders({ silent: true });
+    startCalendarAlertLoop();
   </script>
 </body>
 </html>
