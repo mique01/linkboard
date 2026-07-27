@@ -3,7 +3,7 @@
 // Offline caching + Web Push notification handler
 // ============================================================
 
-const CACHE_NAME = 'linkboard-v5';
+const CACHE_NAME = 'linkboard-v6';
 
 const PRECACHE_URLS = [
   '/dashboard.html',

@@ -8,7 +8,7 @@
     (function () {
       const CANONICAL_ORIGIN = 'https://linkboard-m5wi.vercel.app';
       const DASHBOARD_PATH = '/dashboard.html';
-      const APP_VERSION = '20260727c';
+      const APP_VERSION = '20260727d';
 
       try {
         const current = new URL(window.location.href);
@@ -695,7 +695,8 @@
       text-transform: uppercase;
       margin-bottom: 6px;
     }
-    .form-field input {
+    .form-field input,
+    .form-field textarea {
       width: 100%;
       background: var(--surface2);
       border: 1px solid var(--border);
@@ -707,8 +708,16 @@
       outline: none;
       transition: border-color .15s;
     }
-    .form-field input:focus { border-color: var(--accent-dim); }
+    .form-field textarea { min-height: 76px; resize: vertical; }
+    .form-field input:focus,
+    .form-field textarea:focus { border-color: var(--accent-dim); }
     .form-field input::placeholder { color: var(--text-muted); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .check-field {
+      display: flex; align-items: center; gap: 8px; margin: 4px 0 14px;
+      color: var(--text-dim); font: 10px var(--font-mono); letter-spacing: .08em;
+    }
+    .check-field input { accent-color: var(--accent); }
 
     .modal-actions {
       display: flex;
@@ -1073,7 +1082,7 @@
       display: block; margin: 0 0 5px; padding: 5px 6px;
       border-left: 2px solid var(--accent); background: rgba(200,168,75,.09);
       color: var(--text); font-size: 10px; line-height: 1.3; text-decoration: none;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;
     }
     .calendar-event:hover { background: rgba(200,168,75,.16); }
     .calendar-event-time { color: var(--accent); font-family: var(--font-mono); margin-right: 4px; }
@@ -1096,6 +1105,36 @@
     .calendar-connect-card h2 { margin-bottom: 8px; font: 700 15px var(--font-mono); letter-spacing: .12em; }
     .calendar-connect-card p { margin-bottom: 20px; color: var(--text-dim); font-size: 12px; }
     .calendar-message { padding: 28px; color: var(--text-dim); text-align: center; font: 11px var(--font-mono); letter-spacing: .08em; }
+    .calendar-detail { max-width: 520px; padding: 0; overflow: hidden; }
+    .calendar-detail-head {
+      display: flex; align-items: flex-start; gap: 12px; padding: 20px 22px;
+      border-bottom: 1px solid var(--border); background: var(--surface2);
+    }
+    .calendar-dot { width: 10px; height: 10px; margin-top: 6px; background: var(--accent); border-radius: 2px; flex: 0 0 auto; }
+    .calendar-detail-title { flex: 1; }
+    .calendar-detail-title h2 { margin: 0 0 5px; font-size: 18px; font-weight: 500; }
+    .calendar-detail-title p { color: var(--text-dim); font: 11px var(--font-mono); }
+    .calendar-close { border: 0; background: none; color: var(--text-muted); font-size: 20px; cursor: pointer; }
+    .calendar-detail-body { padding: 18px 22px; max-height: 60vh; overflow-y: auto; }
+    .calendar-detail-row { display: grid; grid-template-columns: 86px 1fr; gap: 12px; margin-bottom: 16px; }
+    .calendar-detail-label { color: var(--text-muted); font: 10px var(--font-mono); letter-spacing: .08em; }
+    .calendar-detail-value { color: var(--text-dim); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .calendar-meet {
+      display: inline-flex; align-items: center; gap: 7px; padding: 9px 12px;
+      background: rgba(200,168,75,.12); border: 1px solid var(--accent-dim);
+      color: var(--accent); text-decoration: none; font: 11px var(--font-mono);
+    }
+    .calendar-attendee { display: flex; align-items: center; gap: 8px; margin: 7px 0; }
+    .attendee-state {
+      width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted);
+    }
+    .attendee-state.accepted { background: #53b77a; }
+    .attendee-state.declined { background: #d55b55; }
+    .attendee-state.tentative { background: var(--accent); }
+    .calendar-detail-actions {
+      display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 22px;
+      border-top: 1px solid var(--border); background: var(--surface2);
+    }
 
     /* ============================================================
        TOAST NOTIFICATION (in-page fallback)
@@ -2524,6 +2563,201 @@
       render(loadData());
     }
 
+    function toLocalInputValue(value) {
+      const date = new Date(value);
+      const offset = date.getTimezoneOffset();
+      return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 16);
+    }
+
+    function openCalendarComposer(dateKey = '', eventId = '') {
+      const existing = eventId ? _calendarEvents.find(item => item.id === eventId) : null;
+      let start = existing ? new Date(existing.start) : new Date();
+      if (!existing && dateKey) {
+        start = new Date(`${dateKey}T09:00:00`);
+      } else if (!existing) {
+        start.setMinutes(0, 0, 0);
+        start.setHours(start.getHours() + 1);
+      }
+      const end = existing ? new Date(existing.end) : new Date(start.getTime() + 60 * 60000);
+      const attendees = existing ? existing.attendees.map(item => item.email).join(', ') : '';
+      const hasMeet = Boolean(existing && existing.meetLink);
+      showModal(`
+        <div class="modal" style="max-width:520px">
+          <h3>${existing ? 'EDIT EVENT' : 'NEW EVENT'}</h3>
+          <div class="form-field">
+            <label>Title</label>
+            <input id="cal-title" value="${escHtml(existing ? existing.title : '')}" placeholder="Event title" maxlength="180" />
+          </div>
+          <div class="form-row">
+            <div class="form-field">
+              <label>Starts</label>
+              <input id="cal-start" type="datetime-local" value="${toLocalInputValue(start)}" />
+            </div>
+            <div class="form-field">
+              <label>Ends</label>
+              <input id="cal-end" type="datetime-local" value="${toLocalInputValue(end)}" />
+            </div>
+          </div>
+          <div class="form-field">
+            <label>Guests</label>
+            <input id="cal-attendees" value="${escHtml(attendees)}" placeholder="name@company.com, another@company.com" />
+          </div>
+          <div class="form-field">
+            <label>Location</label>
+            <input id="cal-location" value="${escHtml(existing ? existing.location : '')}" placeholder="Office, room or address" />
+          </div>
+          <div class="form-field">
+            <label>Description</label>
+            <textarea id="cal-description" placeholder="Agenda, links or notes">${escHtml(existing ? existing.description : '')}</textarea>
+          </div>
+          <label class="check-field">
+            <input id="cal-meet" type="checkbox" ${hasMeet || !existing ? 'checked' : ''} ${hasMeet ? 'disabled' : ''} />
+            ${hasMeet ? 'Google Meet already attached' : 'Add Google Meet video conference'}
+          </label>
+          <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeModal()">CANCEL</button>
+            <button id="cal-save" class="btn-confirm" onclick="saveCalendarEvent('${escHtml(eventId)}')">${existing ? 'SAVE' : 'CREATE'}</button>
+          </div>
+        </div>`);
+    }
+
+    async function saveCalendarEvent(eventId = '') {
+      const title = document.getElementById('cal-title').value.trim();
+      const startValue = document.getElementById('cal-start').value;
+      const endValue = document.getElementById('cal-end').value;
+      if (!title || !startValue || !endValue) {
+        showToast('Title, start and end are required.');
+        return;
+      }
+      const start = new Date(startValue);
+      const end = new Date(endValue);
+      if (end <= start) {
+        showToast('End time must be after start time.');
+        return;
+      }
+      const attendees = document.getElementById('cal-attendees').value
+        .split(/[,;\n]/).map(value => value.trim()).filter(Boolean);
+      const payload = {
+        title,
+        start: start.toISOString(),
+        end: end.toISOString(),
+        attendees,
+        location: document.getElementById('cal-location').value.trim(),
+        description: document.getElementById('cal-description').value.trim(),
+        createMeet: document.getElementById('cal-meet').checked && !document.getElementById('cal-meet').disabled
+      };
+      const button = document.getElementById('cal-save');
+      button.disabled = true;
+      button.textContent = eventId ? 'SAVING...' : 'CREATING...';
+      try {
+        const response = await fetch(
+          eventId ? `/api/google-calendar/events/${encodeURIComponent(eventId)}` : '/api/google-calendar/events',
+          {
+            method: eventId ? 'PATCH' : 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(payload)
+          }
+        );
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Could not save event');
+        closeModal();
+        showToast(eventId ? 'Event updated.' : 'Event created in Google Calendar.');
+        await loadCalendar();
+      } catch (error) {
+        button.disabled = false;
+        button.textContent = eventId ? 'SAVE' : 'CREATE';
+        showToast(error.message || 'Could not save event.');
+      }
+    }
+
+    function openCalendarEvent(eventId) {
+      const item = _calendarEvents.find(event => event.id === eventId);
+      if (!item) return;
+      const start = new Date(item.start);
+      const end = new Date(item.end);
+      const dateLabel = item.allDay
+        ? new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).format(start)
+        : `${new Intl.DateTimeFormat('en-US', {
+            weekday: 'long', month: 'long', day: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+          }).format(start)} – ${new Intl.DateTimeFormat('en-US', {
+            hour: '2-digit', minute: '2-digit'
+          }).format(end)}`;
+      const attendees = item.attendees.length
+        ? item.attendees.map(attendee => `
+            <div class="calendar-attendee">
+              <span class="attendee-state ${escHtml(attendee.responseStatus)}"></span>
+              <span>${escHtml(attendee.name)}${attendee.organizer ? ' · organizer' : ''}${attendee.self ? ' · you' : ''}</span>
+            </div>`).join('')
+        : '<span>No guests</span>';
+      const selfAttendee = item.attendees.find(attendee => attendee.self);
+      showModal(`
+        <div class="modal calendar-detail">
+          <div class="calendar-detail-head">
+            <span class="calendar-dot"></span>
+            <div class="calendar-detail-title">
+              <h2>${escHtml(item.title)}</h2>
+              <p>${escHtml(dateLabel)}</p>
+            </div>
+            <button class="calendar-close" onclick="closeModal()" aria-label="Close">&times;</button>
+          </div>
+          <div class="calendar-detail-body">
+            ${item.meetLink ? `<div class="calendar-detail-row">
+              <span class="calendar-detail-label">VIDEO</span>
+              <div><a class="calendar-meet" href="${escHtml(item.meetLink)}" target="_blank" rel="noopener noreferrer">▣ JOIN WITH GOOGLE MEET</a></div>
+            </div>` : ''}
+            ${item.location ? `<div class="calendar-detail-row"><span class="calendar-detail-label">LOCATION</span><span class="calendar-detail-value">${escHtml(item.location)}</span></div>` : ''}
+            <div class="calendar-detail-row"><span class="calendar-detail-label">GUESTS</span><div class="calendar-detail-value">${attendees}</div></div>
+            ${item.description ? `<div class="calendar-detail-row"><span class="calendar-detail-label">NOTES</span><span class="calendar-detail-value">${escHtml(item.description)}</span></div>` : ''}
+            ${selfAttendee ? `<div class="calendar-detail-row">
+              <span class="calendar-detail-label">GOING?</span>
+              <div class="panel-window-actions">
+                <button class="calendar-btn${selfAttendee.responseStatus === 'accepted' ? ' primary' : ''}" onclick="respondCalendarEvent('${escHtml(item.id)}','accepted')">YES</button>
+                <button class="calendar-btn${selfAttendee.responseStatus === 'declined' ? ' primary' : ''}" onclick="respondCalendarEvent('${escHtml(item.id)}','declined')">NO</button>
+                <button class="calendar-btn${selfAttendee.responseStatus === 'tentative' ? ' primary' : ''}" onclick="respondCalendarEvent('${escHtml(item.id)}','tentative')">MAYBE</button>
+              </div>
+            </div>` : ''}
+          </div>
+          <div class="calendar-detail-actions">
+            <button class="calendar-btn primary" onclick="openCalendarComposer('', '${escHtml(item.id)}')">EDIT</button>
+            <a class="calendar-btn" href="${escHtml(item.htmlLink)}" target="_blank" rel="noopener noreferrer">OPEN IN GOOGLE</a>
+            <button class="calendar-btn" onclick="deleteCalendarEvent('${escHtml(item.id)}')">DELETE</button>
+          </div>
+        </div>`);
+    }
+
+    async function respondCalendarEvent(eventId, responseStatus) {
+      try {
+        const response = await fetch(`/api/google-calendar/events/${encodeURIComponent(eventId)}/respond`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ responseStatus })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Could not respond');
+        closeModal();
+        showToast('Attendance response updated.');
+        await loadCalendar();
+      } catch (error) {
+        showToast(error.message || 'Could not respond.');
+      }
+    }
+
+    async function deleteCalendarEvent(eventId) {
+      const item = _calendarEvents.find(event => event.id === eventId);
+      if (!item || !confirm(`Delete "${item.title}" from Google Calendar? Guests will be notified.`)) return;
+      try {
+        const response = await fetch(`/api/google-calendar/events/${encodeURIComponent(eventId)}`, { method: 'DELETE' });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Could not delete event');
+        closeModal();
+        showToast('Event deleted.');
+        await loadCalendar();
+      } catch (error) {
+        showToast(error.message || 'Could not delete event.');
+      }
+    }
+
     function renderCalendarView() {
       const plannerView = document.getElementById('planner-view');
       if (!_calendarStatus) {
@@ -2567,11 +2801,11 @@
           const time = event.allDay ? 'ALL DAY' : new Intl.DateTimeFormat('en-US', {
             hour: '2-digit', minute: '2-digit', hour12: false
           }).format(new Date(event.start));
-          return `<a class="calendar-event" href="${escHtml(event.htmlLink || '#')}" target="_blank" rel="noopener noreferrer" title="${escHtml(event.title)}">
+          return `<a class="calendar-event" href="#" onclick="event.preventDefault();event.stopPropagation();openCalendarEvent('${escHtml(event.id)}')" ondblclick="event.stopPropagation()" title="${escHtml(event.title)}">
             <span class="calendar-event-time">${time}</span>${escHtml(event.title)}
           </a>`;
         }).join('');
-        daysMarkup += `<div class="calendar-day${date.getMonth() !== month ? ' outside' : ''}${isToday ? ' today' : ''}">
+        daysMarkup += `<div class="calendar-day${date.getMonth() !== month ? ' outside' : ''}${isToday ? ' today' : ''}" ondblclick="openCalendarComposer('${key}')" title="Double-click to create an event">
           <span class="calendar-day-number">${date.getDate()}</span>${eventMarkup}
         </div>`;
       }
@@ -2584,6 +2818,7 @@
             <button class="calendar-btn" onclick="changeCalendarMonth(1)" aria-label="Next month">&rarr;</button>
             <h2 class="calendar-title">${escHtml(monthLabel)}</h2>
             <span class="calendar-account">${escHtml(_calendarStatus.email || 'miqueas.elias@allaria.com.ar')}</span>
+            <button class="calendar-btn primary" onclick="openCalendarComposer()">+ NEW EVENT</button>
             <button class="calendar-btn" onclick="disconnectCalendar()">DISCONNECT</button>
           </div>
           ${_calendarError ? `<div class="calendar-message">${escHtml(_calendarError)}</div>` : `<div class="calendar-grid">${daysMarkup}</div>`}
@@ -2623,7 +2858,7 @@
         _calendarNotice = 'Use miqueas.elias@allaria.com.ar to connect this calendar.';
       }
       loadCalendar();
-      history.replaceState({}, '', '/dashboard.html?v=20260727c');
+      history.replaceState({}, '', '/dashboard.html?v=20260727d');
     }
     render(loadData());
     renderReminders();
