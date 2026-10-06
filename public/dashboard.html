@@ -1262,7 +1262,7 @@
   <footer id="statusbar">
     <div class="statusbar-item">SECTIONS <span id="stat-sections">0</span></div>
     <div class="statusbar-item">LINKS <span id="stat-links">0</span></div>
-    <div class="statusbar-item" style="margin-left:auto;" id="stat-push">PUSH: INACTIVE</div>
+    <div class="statusbar-item" style="margin-left:auto;" id="stat-push">NOTIFICATIONS: INACTIVE</div>
   </footer>
 
   <!-- ===================== REMINDERS PANEL ===================== -->
@@ -1940,22 +1940,18 @@
     }
 
     // ============================================================
-    // WEB PUSH — VAPID subscription flow
-    // 1. Fetch the VAPID public key from /api/push/send
-    // 2. Request notification permission
-    // 3. Subscribe via pushManager.subscribe()
-    // 4. POST the subscription to /api/push/subscribe
-    // The backend stores subscriptions and cron triggers delivery later.
+    // LOCAL NOTIFICATIONS
+    // Tasks and reminders live entirely in this browser's localStorage.
+    // Due reminders are checked while Linkboard is open.
     // ============================================================
 
-    let _pushSubscription = null; // current PushSubscription object
     let _activeWorkspace = 'linkboard';
     let _composerWindow = null;
-    let _deviceId = null;
     let _todos = [];
     let _todosError = null;
     let _reminders = [];
     let _remindersError = null;
+    let _reminderTimer = null;
     let _calendarStatus = null;
     let _calendarEvents = [];
     let _calendarError = null;
@@ -1964,162 +1960,44 @@
     let _calendarDefaultReminders = [];
     let _calendarAlertTimer = null;
 
-    function getDeviceId() {
-      if (_deviceId) return _deviceId;
-      try {
-        const existing = localStorage.getItem('linkboard_device_id');
-        if (existing) {
-          _deviceId = existing;
-          return _deviceId;
-        }
-
-        const created = (crypto && crypto.randomUUID)
-          ? crypto.randomUUID()
-          : `lb_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
-        localStorage.setItem('linkboard_device_id', created);
-        _deviceId = created;
-        return _deviceId;
-      } catch {
-        _deviceId = `lb_fallback_${Date.now().toString(36)}`;
-        return _deviceId;
-      }
-    }
-
-    function normalizeApiError(error, fallback) {
-      const message =
-        error && typeof error.message === 'string' ? error.message.trim() : '';
-
-      if (!message) {
-        return fallback;
-      }
-
-      if (
-        message.includes('device_id') ||
-        message.includes('null value in column "user_id"') ||
-        message.includes('Could not find the') ||
-        message.includes('column')
-      ) {
-        return 'Database schema outdated. Run the local device mode SQL in Supabase.';
-      }
-
-      return message;
-    }
-
-    /** Convert a base64url VAPID public key to a Uint8Array */
-    function urlBase64ToUint8Array(base64String) {
-      const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-      const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-      const raw = atob(base64);
-      return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
-    }
-
-    /** Fetch VAPID public key from server */
-    async function getVapidPublicKey() {
-      try {
-        const res = await fetch('/api/push/send');
-        if (!res.ok) return null;
-        const { publicKey } = await res.json();
-        return publicKey || null;
-      } catch {
-        return null;
-      }
-    }
-
-    /** Subscribe to Web Push and register with server */
-    async function subscribeToPush() {
-      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-        showToast('Web Push is not supported in this browser.');
+    async function requestNotifPermission() {
+      if (typeof Notification === 'undefined') {
+        showToast('Desktop notifications are not supported.');
         return false;
       }
 
-      // Request notification permission first
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
         showToast('Notification permission denied.');
         updateNotifBtn();
         return false;
       }
+
+      localStorage.setItem('linkboard_local_notifications', 'on');
       localStorage.setItem('linkboard_calendar_alerts', 'on');
       startCalendarAlertLoop();
-
-      const vapidPublicKey = await getVapidPublicKey();
-      if (!vapidPublicKey) {
-        // Reminders require server-side Web Push configuration.
-        showToast('Push notifications are not configured on the server.');
-        updateNotifBtn();
-        return false;
-      }
-
-      try {
-        const swReg = await navigator.serviceWorker.ready;
-        const subscription = await swReg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
-        });
-
-        // Register subscription with our Next.js API
-        const subRes = await fetch('/api/push/subscribe', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-device-id': getDeviceId()
-          },
-          body: JSON.stringify({ subscription: subscription.toJSON() })
-        });
-        const subData = await subRes.json();
-        console.log('[push] subscription registered:', subData);
-
-        _pushSubscription = subscription;
-        showToast('Web Push notifications enabled.');
-        updateNotifBtn();
-        return true;
-      } catch (err) {
-        console.error('[push] subscribe failed:', err);
-        showToast('Could not subscribe to push notifications.');
-        return false;
-      }
-    }
-
-    /** Restore existing push subscription on page load and re-register with server. */
-    async function restorePushSubscription() {
-      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
-      try {
-        const swReg = await navigator.serviceWorker.ready;
-        const existing = await swReg.pushManager.getSubscription();
-        if (existing) {
-          _pushSubscription = existing;
-          // Re-register on load so the stored keys stay in sync.
-          const res = await fetch('/api/push/subscribe', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-device-id': getDeviceId()
-            },
-            body: JSON.stringify({ subscription: existing.toJSON() })
-          });
-          const data = await res.json();
-          console.log('[push] subscription re-registered on load:', data);
-        }
-      } catch (err) {
-        console.log('[push] restorePushSubscription error:', err);
-      }
+      showToast('Local notifications enabled. Keep Linkboard open for reminders.');
       updateNotifBtn();
+      checkDueReminders();
+      return true;
     }
 
-    function requestNotifPermission() {
-      subscribeToPush();
+    function localNotificationsEnabled() {
+      return typeof Notification !== 'undefined' &&
+        Notification.permission === 'granted' &&
+        localStorage.getItem('linkboard_local_notifications') === 'on';
     }
 
     function updateNotifBtn() {
       const btn = document.getElementById('btn-notif');
-      const hasPush = !!_pushSubscription;
-      btn.classList.toggle('active', hasPush);
-      btn.title = hasPush ? 'Web Push enabled' : 'Enable push notifications';
+      const enabled = localNotificationsEnabled();
+      btn.classList.toggle('active', enabled);
+      btn.title = enabled ? 'Local notifications enabled' : 'Enable local notifications';
 
       // Update statusbar indicator
       const statPush = document.getElementById('stat-push');
       if (statPush) {
-        statPush.textContent = hasPush ? 'PUSH: ACTIVE' : 'PUSH: INACTIVE';
+        statPush.textContent = enabled ? 'NOTIFICATIONS: ACTIVE' : 'NOTIFICATIONS: INACTIVE';
       }
     }
 
@@ -2169,63 +2047,38 @@
       render(loadData());
     }
 
-    // Restore subscription state on load
-    restorePushSubscription();
-
     // ============================================================
     // REMINDER SYSTEM
-    // Reminders are stored in Supabase and processed by backend cron.
+    // Stored locally; no database or API is required.
     // ============================================================
 
-    async function apiJson(url, options = {}) {
-      const headers = new Headers(options.headers || {});
-      headers.set('x-device-id', getDeviceId());
+    const TASKS_STORAGE_KEY = 'linkboard_tasks';
+    const REMINDERS_STORAGE_KEY = 'linkboard_reminders';
 
-      const response = await fetch(url, {
-        ...options,
-        cache: 'no-store',
-        headers,
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        const err = new Error(data.error || 'Request failed');
-        err.status = response.status;
-        throw err;
+    function readLocalList(key) {
+      try {
+        const value = JSON.parse(localStorage.getItem(key) || '[]');
+        return Array.isArray(value) ? value : [];
+      } catch {
+        return [];
       }
-      return data;
     }
 
-    async function loadReminders({ silent = false } = {}) {
-      const [todosResult, remindersResult] = await Promise.allSettled([
-        apiJson('/api/todos'),
-        apiJson('/api/tasks')
-      ]);
+    function saveLocalList(key, value) {
+      localStorage.setItem(key, JSON.stringify(value));
+    }
 
-      if (todosResult.status === 'fulfilled') {
-        _todos = Array.isArray(todosResult.value.todos) ? todosResult.value.todos : [];
-        _todosError = null;
-      } else {
-        _todos = [];
-        _todosError = normalizeApiError(todosResult.reason, 'Could not load tasks.').toUpperCase();
-      }
-
-      if (remindersResult.status === 'fulfilled') {
-        _reminders = Array.isArray(remindersResult.value.tasks) ? remindersResult.value.tasks : [];
-        _remindersError = null;
-      } else {
-        _reminders = [];
-        _remindersError = normalizeApiError(remindersResult.reason, 'Could not load reminders.').toUpperCase();
-      }
-
+    function loadReminders() {
+      _todos = readLocalList(TASKS_STORAGE_KEY);
+      _reminders = readLocalList(REMINDERS_STORAGE_KEY)
+        .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
+      _todosError = null;
+      _remindersError = null;
       renderReminders();
       render(loadData());
-
-      if (!silent && (_todosError || _remindersError)) {
-        showToast(_todosError || _remindersError || 'Could not load the planner.');
-      }
     }
 
-    async function addTask() {
+    function addTask() {
       const title = document.getElementById('task-title').value.trim();
       if (!title) {
         showToast('Task title is required.');
@@ -2233,29 +2086,24 @@
       }
 
       try {
-        const result = await apiJson('/api/todos', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title
-          })
-        });
-
-        if (result && result.todo) {
-          _todos = [result.todo, ..._todos.filter(item => item.id !== result.todo.id)];
-        }
-
+        const task = {
+          id: uid(),
+          title,
+          description: null,
+          created_at: new Date().toISOString()
+        };
+        _todos = [task, ..._todos];
+        saveLocalList(TASKS_STORAGE_KEY, _todos);
         document.getElementById('task-title').value = '';
         _composerWindow = null;
         render(loadData());
-        await loadReminders({ silent: true });
         showToast('Task saved.');
       } catch (err) {
-        showToast(normalizeApiError(err, 'Could not save task.'));
+        showToast('Could not save task in this browser.');
       }
     }
 
-    async function addReminder() {
+    function addReminder() {
       const title = document.getElementById('rp-title').value.trim();
       const time  = document.getElementById('rp-time').value;
       if (!title || !time) {
@@ -2270,39 +2118,34 @@
       }
 
       try {
-        const result = await apiJson('/api/tasks', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title,
-            dueDate: dueDate.toISOString()
-          })
-        });
-
-        if (result && result.task) {
-          _reminders = [..._reminders.filter(item => item.id !== result.task.id), result.task]
-            .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
-        }
-
+        const reminder = {
+          id: uid(),
+          title,
+          description: null,
+          due_date: dueDate.toISOString(),
+          notified: false,
+          created_at: new Date().toISOString()
+        };
+        _reminders = [..._reminders, reminder]
+          .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
+        saveLocalList(REMINDERS_STORAGE_KEY, _reminders);
         document.getElementById('rp-title').value = '';
         document.getElementById('rp-time').value  = '';
         _composerWindow = null;
         render(loadData());
-        await loadReminders({ silent: true });
+        renderReminders();
+        checkDueReminders();
         showToast('Reminder saved.');
       } catch (err) {
-        showToast(normalizeApiError(err, 'Could not save reminder.'));
+        showToast('Could not save reminder in this browser.');
       }
     }
 
-    async function deleteTask(id, successMessage = '') {
+    function deleteTask(id, successMessage = '') {
       try {
-        await apiJson(`/api/todos/${encodeURIComponent(id)}`, {
-          method: 'DELETE'
-        });
         _todos = _todos.filter(item => item.id !== id);
+        saveLocalList(TASKS_STORAGE_KEY, _todos);
         render(loadData());
-        await loadReminders({ silent: true });
         if (successMessage) {
           showToast(successMessage);
         }
@@ -2311,14 +2154,12 @@
       }
     }
 
-    async function deleteReminder(id, successMessage = '') {
+    function deleteReminder(id, successMessage = '') {
       try {
-        await apiJson(`/api/tasks/${encodeURIComponent(id)}`, {
-          method: 'DELETE'
-        });
         _reminders = _reminders.filter(item => item.id !== id);
+        saveLocalList(REMINDERS_STORAGE_KEY, _reminders);
         render(loadData());
-        await loadReminders({ silent: true });
+        renderReminders();
         if (successMessage) {
           showToast(successMessage);
         }
@@ -2327,8 +2168,45 @@
       }
     }
 
-    async function completeTask(id) {
-      await deleteTask(id, 'Task completed.');
+    function completeTask(id) {
+      deleteTask(id, 'Task completed.');
+    }
+
+    function checkDueReminders() {
+      if (!localNotificationsEnabled()) return;
+
+      const now = Date.now();
+      const due = _reminders.filter(reminder =>
+        !reminder.notified && new Date(reminder.due_date).getTime() <= now
+      );
+
+      if (!due.length) return;
+
+      let changed = false;
+      due.forEach(reminder => {
+        try {
+          new Notification('Linkboard Reminder', {
+            body: reminder.title,
+            icon: '/icon.png',
+            tag: `linkboard-reminder-${reminder.id}`
+          });
+          reminder.notified = true;
+          changed = true;
+        } catch (error) {
+          console.log('[local-reminder] notification failed', error);
+        }
+      });
+
+      if (changed) {
+        saveLocalList(REMINDERS_STORAGE_KEY, _reminders);
+        renderReminders();
+        if (_activeWorkspace === 'reminders') render(loadData());
+      }
+    }
+
+    function startReminderLoop() {
+      if (_reminderTimer) clearInterval(_reminderTimer);
+      _reminderTimer = setInterval(checkDueReminders, 15000);
     }
 
     function renderReminders() {
@@ -2453,7 +2331,7 @@
       const emptyTitle = view === 'tasks' ? 'NO TASKS YET' : 'NO REMINDERS YET';
       const emptyBody = view === 'tasks'
         ? 'Add a simple task and mark it done when you finish it.'
-        : 'Add a reminder with a due date and the backend will handle the notification.';
+        : 'Add a reminder with a due date. Linkboard will notify you while it is open.';
 
       const bodyMarkup = isComposerOpen
         ? (view === 'tasks'
@@ -2989,8 +2867,18 @@
     }
     render(loadData());
     renderReminders();
-    loadReminders({ silent: true });
+    loadReminders();
+    updateNotifBtn();
+    startReminderLoop();
+    checkDueReminders();
     startCalendarAlertLoop();
+
+    window.addEventListener('storage', event => {
+      if (event.key === TASKS_STORAGE_KEY || event.key === REMINDERS_STORAGE_KEY) {
+        loadReminders();
+        checkDueReminders();
+      }
+    });
   </script>
 </body>
 </html>
